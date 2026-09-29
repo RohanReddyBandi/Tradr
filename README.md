@@ -17,6 +17,19 @@ npm run dev
 Then open the URL Vite prints (usually http://localhost:5173). Run the tests with
 `npm test`. Without `npm run fetch-charts`, every card is a generated chart.
 
+## Deploying
+
+Tradr is a static site (no server), deployed on [Vercel](https://vercel.com):
+
+1. Sign in to Vercel with GitHub, choose **Add New → Project**, and import this repo.
+   Vercel detects Vite; the defaults (`npm run build`, output `dist`) are right.
+2. Every push to `main` redeploys automatically.
+3. For visitor stats, open the project's **Analytics** tab and enable Web Analytics.
+   The app already includes Vercel's analytics component; it sends nothing until
+   that's switched on, and nothing at all when running locally.
+
+The deployed site uses generated charts only, since the real-chart data isn't in the repo.
+
 ## Controls
 
 - Drag the card right to **buy**, left to **sell**, up to **skip**

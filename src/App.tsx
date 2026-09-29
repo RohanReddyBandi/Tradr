@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { MotionConfig } from 'motion/react'
+import { Analytics } from '@vercel/analytics/react'
 import { TabBar, TopBar, type Tab } from './components/TabBar'
 import { SwipePage } from './pages/SwipePage'
 import { LearnPage } from './pages/LearnPage'
@@ -41,6 +42,9 @@ export default function App() {
           {!(tab === 'swipe' && game.pending) && <TabBar active={tab} onChange={changeTab} />}
         </div>
       </div>
+      {/* Vercel Web Analytics: counts visits (no cookies) once it's switched on in
+          the Vercel dashboard. It does nothing when running locally. */}
+      <Analytics />
     </MotionConfig>
   )
 }
