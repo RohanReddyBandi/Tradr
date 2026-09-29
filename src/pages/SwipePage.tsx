@@ -17,7 +17,7 @@ const KEY_TO_DECISION: Record<string, Decision> = {
 
 // The Swipe tab has three screens: the card deck, the trade setup after a buy
 // or sell, and the Breakdown once the trade has played out.
-export function SwipePage({ game }: { game: Game }) {
+export function SwipePage({ game, onLearn }: { game: Game; onLearn: (patternName: string) => void }) {
   return (
     <AnimatePresence mode="wait" initial={false}>
       {game.pending ? (
@@ -40,7 +40,7 @@ export function SwipePage({ game }: { game: Game }) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
         >
-          <BreakdownView review={game.review} onSettle={game.settle} onNext={game.next} />
+          <BreakdownView review={game.review} onSettle={game.settle} onNext={game.next} onLearn={onLearn} />
         </motion.div>
       ) : (
         <motion.div key="deck" className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
@@ -139,7 +139,7 @@ function Deck({ game }: { game: Game }) {
       </section>
 
       <div className="hidden min-h-0 lg:flex lg:flex-col">
-        <SessionPanel history={game.history} sessionPnl={game.balance - STARTING_BALANCE} />
+        <SessionPanel history={game.history} totalPnl={game.balance - STARTING_BALANCE} />
       </div>
     </div>
   )

@@ -1,30 +1,30 @@
-import type { Review } from '../game/useGame'
 import { GRADE_LABEL, isGoodGrade } from '../lib/analyze'
+import type { TradeRecord } from '../lib/stats'
 import { formatR, formatSignedMoney } from '../format'
 
 const DECISION_LABEL = { buy: 'Bought', sell: 'Sold', skip: 'Skipped' }
 
 interface Props {
-  history: Review[] // newest first
-  sessionPnl: number
+  history: TradeRecord[] // newest first
+  totalPnl: number
 }
 
-// Desktop sidebar next to the card: every call so far, and how it was graded.
-export function SessionPanel({ history, sessionPnl }: Props) {
-  const goodReads = history.filter((r) => isGoodGrade(r.breakdown.grade)).length
+// Desktop sidebar next to the card: your recent calls and how each was graded.
+export function SessionPanel({ history, totalPnl }: Props) {
+  const goodReads = history.filter((r) => isGoodGrade(r.grade)).length
 
   return (
     <aside className="flex min-h-0 flex-1 flex-col rounded-3xl border border-edge bg-card">
       <div className="px-5 pt-5">
-        <h2 className="text-[11px] tracking-[0.08em] text-muted uppercase">This session</h2>
+        <h2 className="text-[11px] tracking-[0.08em] text-muted uppercase">Your calls</h2>
         <div className="mt-3 flex gap-8">
           <div>
             <div className="font-mono text-2xl leading-none">{history.length ? `${goodReads}/${history.length}` : '0'}</div>
             <div className="mt-1.5 text-xs text-muted">good reads</div>
           </div>
           <div>
-            <div className={`font-mono text-2xl leading-none ${sessionPnl > 0 ? 'text-up' : sessionPnl < 0 ? 'text-down' : ''}`}>
-              {formatSignedMoney(sessionPnl)}
+            <div className={`font-mono text-2xl leading-none ${totalPnl > 0 ? 'text-up' : totalPnl < 0 ? 'text-down' : ''}`}>
+              {formatSignedMoney(totalPnl)}
             </div>
             <div className="mt-1.5 text-xs text-muted">profit and loss</div>
           </div>
@@ -37,22 +37,22 @@ export function SessionPanel({ history, sessionPnl }: Props) {
             Each call you make shows up here with its grade. Read the chart on the left, then swipe or use the arrow keys.
           </li>
         )}
-        {history.map(({ card, breakdown: b }) => (
-          <li key={card.id} className="flex items-start justify-between gap-3 border-b border-edge px-5 py-3.5">
+        {history.slice(0, 50).map((r) => (
+          <li key={r.id} className="flex items-start justify-between gap-3 border-b border-edge px-5 py-3.5">
             <div className="min-w-0">
               <div className="truncate text-sm text-neutral-200">
-                Card {card.number} · {card.setup.name}
+                Card {r.cardNumber} · {r.setupName}
               </div>
               <div className="mt-0.5 text-xs text-muted">
-                <span className="capitalize">{card.difficulty}</span> · {DECISION_LABEL[b.decision]} ·{' '}
-                <span className={isGoodGrade(b.grade) ? 'text-up' : 'text-amber'}>{GRADE_LABEL[b.grade]}</span>
+                <span className="capitalize">{r.difficulty}</span> · {DECISION_LABEL[r.decision]} ·{' '}
+                <span className={isGoodGrade(r.grade) ? 'text-up' : 'text-amber'}>{GRADE_LABEL[r.grade]}</span>
               </div>
             </div>
             <div className="shrink-0 text-right font-mono">
-              <div className={`text-sm ${b.pnl > 0 ? 'text-up' : b.pnl < 0 ? 'text-down' : 'text-muted'}`}>
-                {b.result ? formatSignedMoney(b.pnl) : '—'}
+              <div className={`text-sm ${r.pnl > 0 ? 'text-up' : r.pnl < 0 ? 'text-down' : 'text-muted'}`}>
+                {r.r === null ? '—' : formatSignedMoney(r.pnl)}
               </div>
-              {b.result && <div className="mt-0.5 text-xs text-muted">{formatR(b.result.r)}</div>}
+              {r.r !== null && <div className="mt-0.5 text-xs text-muted">{formatR(r.r)}</div>}
             </div>
           </li>
         ))}

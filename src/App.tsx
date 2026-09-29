@@ -2,44 +2,43 @@ import { useState } from 'react'
 import { MotionConfig } from 'motion/react'
 import { TabBar, TopBar, type Tab } from './components/TabBar'
 import { SwipePage } from './pages/SwipePage'
-import { ComingSoonPage } from './pages/ComingSoonPage'
+import { LearnPage } from './pages/LearnPage'
+import { StatsPage } from './pages/StatsPage'
 import { useGame } from './game/useGame'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('swipe')
+  const [learnFocus, setLearnFocus] = useState<string | null>(null) // a pattern to open in Learn
   const game = useGame()
+
+  function changeTab(next: Tab) {
+    setLearnFocus(null)
+    setTab(next)
+  }
+
+  function openLearn(patternName: string) {
+    setLearnFocus(patternName)
+    setTab('learn')
+  }
 
   return (
     // reducedMotion="user": if the device asks for less motion, skip the
     // sliding and scaling animations.
     <MotionConfig reducedMotion="user">
       <div className="flex h-dvh flex-col">
-        <TopBar active={tab} onChange={setTab} balance={game.balance} />
+        <TopBar active={tab} onChange={changeTab} balance={game.balance} />
 
         {/* Phones: one column. Tablets: a slightly wider column with edges.
             Desktop: the full width, laid out by each page. */}
         <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col md:max-w-lg md:border-x md:border-edge lg:max-w-none lg:border-x-0">
           <main className="min-h-0 flex-1">
-            {tab === 'swipe' && <SwipePage game={game} />}
-            {tab === 'learn' && (
-              <ComingSoonPage title="Learn">
-                A library of every chart pattern, with example charts and the ones you miss most. Arrives in Phase 6.
-              </ComingSoonPage>
-            )}
-            {tab === 'stats' && (
-              <ComingSoonPage title="Stats">
-                Balance, equity curve, win rate, average R, and decision accuracy. Arrives in Phase 6.
-                <p className="mt-4 text-xs text-muted">
-                  Charts by{' '}
-                  <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline">
-                    TradingView Lightweight Charts™
-                  </a>
-                </p>
-              </ComingSoonPage>
-            )}
+            {tab === 'swipe' && <SwipePage game={game} onLearn={openLearn} />}
+            {/* The key makes Learn start fresh (and jump) each time it opens on a pattern. */}
+            {tab === 'learn' && <LearnPage key={learnFocus ?? 'all'} history={game.history} focus={learnFocus} />}
+            {tab === 'stats' && <StatsPage game={game} onPlay={() => changeTab('swipe')} onLearn={openLearn} />}
           </main>
           {/* The trade setup is a focused step with its own back button, so the phone tabs step aside. */}
-          {!(tab === 'swipe' && game.pending) && <TabBar active={tab} onChange={setTab} />}
+          {!(tab === 'swipe' && game.pending) && <TabBar active={tab} onChange={changeTab} />}
         </div>
       </div>
     </MotionConfig>

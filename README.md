@@ -35,6 +35,11 @@ Every card shows its difficulty before you decide:
 
 The Breakdown of a hard card explains what made it hard.
 
+## Saving
+
+Your balance and history are saved in this browser (localStorage), so they survive a
+reload. Reset on the Stats page starts over at $10,000.
+
 ## Build status
 
 1. ✅ Swipe card UI
@@ -42,7 +47,7 @@ The Breakdown of a hard card explains what made it hard.
 3. ✅ Trade setup panel (position size, draggable stop loss and take profit, live risk/reward) and a replay that closes at the stop or target
 4. ✅ Breakdown: replay, markup drawn on the chart, decision graded separately from the outcome
 5. ✅ Pattern detection: 31 candlestick patterns and 28 chart patterns, found from the raw candles alone (this is what will read real charts)
-6. ⬜ Stats + Learn tabs + saving to localStorage
+6. ✅ Stats (equity curve, win rate, average R, decision accuracy, skip stats, accuracy by difficulty and by pattern), a Learn tab with every pattern, and saving to localStorage
 7. ⬜ Real historical data
 
 ## How a card works
@@ -85,6 +90,10 @@ The Breakdown of a hard card explains what made it hard.
 | `src/lib/trade.ts` | Trade math and the replay that checks the stop and target |
 | `src/lib/riskReview.ts` | Grades your stop and target placement |
 | `src/lib/analyze.ts` | Grades a decision and writes the Breakdown text |
+| `src/lib/stats.ts` | Works out the Stats page numbers from your history |
+| `src/lib/library.ts`, `src/lib/examples.ts` | The Learn tab's pattern list and example charts |
+| `src/pages/StatsPage.tsx`, `src/components/EquityChart.tsx` | Stats page and the equity curve |
+| `src/pages/LearnPage.tsx`, `src/components/MiniChart.tsx` | Learn tab and its small example charts |
 
 ## Stack
 

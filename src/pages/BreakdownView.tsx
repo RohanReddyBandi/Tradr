@@ -6,6 +6,7 @@ import { FUTURE_CANDLES } from '../lib/generator'
 import { CandleChart } from '../components/CandleChart'
 import { Markup } from '../components/Markup'
 import { DifficultyBadge } from '../components/DifficultyBadge'
+import { findEntry } from '../lib/library'
 import { COLORS } from '../theme'
 import { formatR, formatSignedMoney, formatSignedPercent } from '../format'
 import { riskAndReward, sign, type TradePlan, type TradeResult } from '../lib/trade'
@@ -15,12 +16,13 @@ interface Props {
   review: Review
   onSettle: () => void // the replay finished
   onNext: () => void
+  onLearn: (patternName: string) => void // open a pattern in the Learn tab
 }
 
 const FIRST_CANDLE_DELAY = 450 // ms pause before the replay starts
 const CANDLE_DELAY = 70 // ms between replayed candles
 
-export function BreakdownView({ review, onSettle, onNext }: Props) {
+export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
   const { card, breakdown: b } = review
   const reduceMotion = useReducedMotion()
   const allCandles = useMemo(() => [...card.candles, ...card.future], [card])
@@ -77,6 +79,8 @@ export function BreakdownView({ review, onSettle, onNext }: Props) {
   const exitColor = favorable > 0 ? COLORS.up : favorable < 0 ? COLORS.down : COLORS.chalk
 
   const activeFinding = b.findings.find((f) => f.id === activeId)
+  // The main pattern to study: the first one on this chart that the Learn tab covers.
+  const lesson = b.findings.find((f) => findEntry(f.name))
   const activeScan = b.scanned.find((f) => f.id === activeId)
   // Everything a pattern chip needs to highlight its pattern on the chart.
   const chip = (f: Finding, scanner = false) => (
@@ -233,13 +237,23 @@ export function BreakdownView({ review, onSettle, onNext }: Props) {
               </Reveal>
 
               <Reveal>
-                <button
-                  onClick={onNext}
-                  className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-up text-lg font-semibold text-black transition-colors hover:bg-[#5fe6ab]"
-                >
-                  Next card
-                  <kbd className="hidden rounded-md border border-black/20 px-1.5 py-0.5 font-mono text-xs font-medium lg:inline">Enter</kbd>
-                </button>
+                <div className="flex gap-3">
+                  {lesson && (
+                    <button
+                      onClick={() => onLearn(lesson.name)}
+                      className="h-14 flex-1 rounded-2xl border border-neutral-800 bg-card px-4 text-[17px] font-semibold text-neutral-100 transition-colors hover:border-neutral-600"
+                    >
+                      Learn this pattern
+                    </button>
+                  )}
+                  <button
+                    onClick={onNext}
+                    className="flex h-14 flex-1 items-center justify-center gap-3 rounded-2xl bg-up text-lg font-semibold text-black transition-colors hover:bg-[#5fe6ab]"
+                  >
+                    Next card
+                    <kbd className="hidden rounded-md border border-black/20 px-1.5 py-0.5 font-mono text-xs font-medium lg:inline">Enter</kbd>
+                  </button>
+                </div>
               </Reveal>
             </motion.div>
           )}

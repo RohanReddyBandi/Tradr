@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ChartCard, Decision } from '../types'
 import { generateCard } from '../lib/generator'
 import { analyze, type Breakdown } from '../lib/analyze'
 import { DEFAULT_POSITION_SHARE, type Direction, type TradePlan } from '../lib/trade'
+import type { TradeRecord } from '../lib/stats'
 
 export const STARTING_BALANCE = 10_000
 
@@ -19,14 +20,53 @@ export interface Review {
   settled: boolean // has the P&L been added to the balance yet?
 }
 
+// ---------------------------------------------------------------------------
+// Saving to the browser (localStorage). Only the balance and the history are
+// saved. localStorage can be missing or full (private windows, for example),
+// so every read and write is wrapped in try/catch and the game still works.
+// ---------------------------------------------------------------------------
+
+const STORAGE_KEY = 'tradr:v1'
+
+interface Saved {
+  version: 1
+  balance: number
+  history: TradeRecord[]
+}
+
+function load(): Saved | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const saved = JSON.parse(raw) as Saved
+    return saved.version === 1 && typeof saved.balance === 'number' && Array.isArray(saved.history) ? saved : null
+  } catch {
+    return null
+  }
+}
+
+function save(saved: Saved) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved))
+  } catch {
+    // Storage is full or blocked: keep playing, just without saving.
+  }
+}
+
+// A fresh deck, numbered on from the last card played.
+const freshDeck = (lastNumber: number) => [1, 2, 3].map((n) => generateCard(lastNumber + n))
+
 // All of the game's state lives here, so switching tabs doesn't lose it.
-// (Phase 6 will save it to localStorage.)
 export function useGame() {
-  const [balance, setBalance] = useState(STARTING_BALANCE)
-  const [history, setHistory] = useState<Review[]>([])
-  const [deck, setDeck] = useState<ChartCard[]>(() => [1, 2, 3].map((n) => generateCard(n)))
+  const [saved] = useState(load)
+  const [balance, setBalance] = useState(saved?.balance ?? STARTING_BALANCE)
+  const [history, setHistory] = useState<TradeRecord[]>(saved?.history ?? [])
+  const [deck, setDeck] = useState<ChartCard[]>(() => freshDeck(saved?.history[0]?.cardNumber ?? 0))
   const [pending, setPending] = useState<PendingTrade | null>(null)
   const [review, setReview] = useState<Review | null>(null)
+
+  // Save whenever the balance or history changes.
+  useEffect(() => save({ version: 1, balance, history }), [balance, history])
 
   // The usual position size, used as the default and to show what skips missed.
   const stake = Math.round(balance * DEFAULT_POSITION_SHARE * 100) / 100
@@ -59,10 +99,26 @@ export function useGame() {
   // The replay finished: now the result counts. Guarded so it only happens once.
   function settle() {
     if (!review || review.settled) return
-    const done = { ...review, settled: true }
-    setReview(done)
-    setBalance((b) => Math.round((b + review.breakdown.pnl) * 100) / 100)
-    setHistory((h) => [done, ...h])
+    const { card, breakdown: b } = review
+    const balanceAfter = Math.round((balance + b.pnl) * 100) / 100
+    const record: TradeRecord = {
+      id: card.id,
+      cardNumber: card.number,
+      setupName: card.setup.name,
+      difficulty: card.difficulty,
+      decision: b.decision,
+      grade: b.grade,
+      outcome: b.outcome,
+      pnl: b.pnl,
+      r: b.result ? b.result.r : null,
+      missedPnl: b.missed ? b.missed.result.pnl : null,
+      balanceAfter,
+      patterns: b.findings.map((f) => f.name),
+      at: Date.now(),
+    }
+    setReview({ ...review, settled: true })
+    setBalance(balanceAfter)
+    setHistory((h) => [record, ...h])
   }
 
   // Leave the Breakdown and show the next card.
@@ -71,7 +127,16 @@ export function useGame() {
     setReview(null)
   }
 
-  return { balance, history, deck, pending, review, decide, enterTrade, cancelTrade, settle, next }
+  // Start over: $10,000, no history.
+  function reset() {
+    setBalance(STARTING_BALANCE)
+    setHistory([])
+    setPending(null)
+    setReview(null)
+    setDeck(freshDeck(0))
+  }
+
+  return { balance, history, deck, pending, review, decide, enterTrade, cancelTrade, settle, next, reset }
 }
 
 export type Game = ReturnType<typeof useGame>
