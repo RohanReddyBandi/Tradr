@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+
+/* Design tokens. Each --color-* becomes a Tailwind color, e.g. bg-card, text-up. */
+@theme {
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+
+  --color-base: #050505;
+  --color-card: #0b0b0b;
+  --color-edge: #1c1c1c;
+  --color-up: #3ddc97;
+  --color-down: #ef5b52;
+  --color-equity: #3b8a63;
+  --color-muted: #999999; /* labels and hints */
+  --color-soft: #b5b5b5; /* secondary text */
+  --color-dim: #7d7d7d; /* inactive tabs (passes WCAG AA on the background) */
+  --color-amber: #f5a524; /* decisions that need work */
+  --color-chalk: #9a9a9a; /* chart-pattern markup */
+  --color-marker: #f5d45e; /* candlestick-pattern markup */
+}
+
+/* `tall:` classes only apply on screens with room to spare (most phones
+   except the smallest), so short screens keep every pixel for the chart. */
+@custom-variant tall (@media (min-height: 780px));
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-base);
+  color: #f2f2f2;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  /* Stop the browser's pull-to-refresh from fighting the swipe-up gesture. */
+  overscroll-behavior: none;
+}
+
+/* Keyboard focus ring that fits the dark theme. */
+:focus-visible {
+  outline: 2px solid #5c5c5c;
+  outline-offset: 2px;
+}
