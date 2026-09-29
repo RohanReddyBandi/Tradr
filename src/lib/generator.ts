@@ -146,6 +146,8 @@ function mapShape(shape: Shape, price: PriceMap, flip: boolean): Shape {
       const place = flip ? (shape.place === 'above' ? 'below' : 'above') : shape.place
       return { ...shape, at: { ...shape.at, price: price(shape.at.price) }, place }
     }
+    case 'curve':
+      return { ...shape, points: shape.points.map((p) => ({ ...p, price: price(p.price) })) }
     case 'candles':
       return shape
   }

@@ -24,6 +24,7 @@ export type Shape =
   | { kind: 'line'; from: ChartPoint; to: ChartPoint; label?: string } // trendline, channel edge, neckline
   | { kind: 'level'; price: number; fromIndex: number; toIndex: number; label?: string } // support / resistance
   | { kind: 'dot'; at: ChartPoint; label: string; place: 'above' | 'below' } // a swing point, e.g. "Head"
+  | { kind: 'curve'; points: ChartPoint[] } // a smooth curve, like the bottom of a cup
   | { kind: 'candles'; fromIndex: number; toIndex: number } // outline around exact candles
 
 // One thing the chart was "saying": a chart pattern or a candlestick pattern.

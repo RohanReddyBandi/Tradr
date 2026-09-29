@@ -41,7 +41,7 @@ The Breakdown of a hard card explains what made it hard.
 2. ✅ Synthetic chart generator: 9 setups (plus a no-edge "chop" chart), each in a bullish and a bearish version
 3. ✅ Trade setup panel (position size, draggable stop loss and take profit, live risk/reward) and a replay that closes at the stop or target
 4. ✅ Breakdown: replay, markup drawn on the chart, decision graded separately from the outcome
-5. 🟡 Pattern detection: every candlestick pattern is done and tested; chart-pattern detection (needed for real charts) is next
+5. ✅ Pattern detection: 31 candlestick patterns and 28 chart patterns, found from the raw candles alone (this is what will read real charts)
 6. ⬜ Stats + Learn tabs + saving to localStorage
 7. ⬜ Real historical data
 
@@ -59,6 +59,10 @@ The Breakdown of a hard card explains what made it hard.
    the result), and `lib/riskReview.ts` judges where you put your stop and target.
 4. `pages/BreakdownView.tsx` replays the future candles, then `components/Markup.tsx`
    draws the patterns on the chart.
+5. The pattern scanner (`lib/chartPatterns.ts`) reads the same candles with no answer
+   key: it finds swing points (`lib/pivots.ts`), then looks for each chart pattern in
+   them. The Breakdown shows what it found and whether it matched the pattern the
+   generator built, and the tests grade it against thousands of generated charts.
 
 ## Where things live
 
@@ -74,6 +78,8 @@ The Breakdown of a hard card explains what made it hard.
 | `src/components/Markup.tsx` | Lines, boxes, and labels drawn on top of the chart |
 | `src/components/TradeLines.tsx` | The draggable stop loss and take profit lines |
 | `src/lib/candlePatterns.ts` | Detectors for 31 candlestick patterns |
+| `src/lib/pivots.ts` | Finds swing highs and lows (a "zigzag") |
+| `src/lib/chartPatterns.ts` | Detectors for 28 chart patterns, with meanings and common traps |
 | `src/lib/setups.ts` | The chart setups the generator can build |
 | `src/lib/generator.ts` | Builds random charts with a setup baked in |
 | `src/lib/trade.ts` | Trade math and the replay that checks the stop and target |

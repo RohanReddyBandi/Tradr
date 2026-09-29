@@ -10,6 +10,7 @@ interface Props {
   shownCount: number // how many candles the replay has revealed so far
   exitColor: string // green if the replay went your way, red if not
   findings: Finding[]
+  scanned: Finding[] // the pattern scanner's results: drawn only while their chip is active
   showFindings: boolean // patterns are drawn once the replay is done
   activeId: string | null // the pattern chip being hovered or tapped
   levels: { stop: number; target: number } | null // your stop loss and take profit
@@ -19,7 +20,7 @@ interface Props {
 // Everything drawn on top of the Breakdown chart: the replay zone, entry and
 // exit markers, and the pattern markup (grey for chart patterns, yellow for
 // candlestick patterns).
-export function Markup({ project, candles, entryIndex, shownCount, exitColor, findings, showFindings, activeId, levels, exit }: Props) {
+export function Markup({ project, candles, entryIndex, shownCount, exitColor, findings, scanned, showFindings, activeId, levels, exit }: Props) {
   const { width, height } = project
   const x = (index: number) => project.x(index) ?? -100
   const y = (price: number) => project.y(price) ?? -100
@@ -38,6 +39,7 @@ export function Markup({ project, candles, entryIndex, shownCount, exitColor, fi
   // Chart patterns draw first, then candlestick patterns, one after another.
   const drawDelay = (k: number) => 0.15 + k * 0.35
   const dim = (f: Finding) => (activeId && activeId !== f.id ? 0.15 : 1)
+  const activeScan = showFindings ? scanned.find((f) => f.id === activeId) : undefined
 
   return (
     <>
@@ -57,6 +59,15 @@ export function Markup({ project, candles, entryIndex, shownCount, exitColor, fi
               ))}
             </g>
           ))}
+
+        {/* A scanner result, in dashed white so it's clearly not the built-in markup. */}
+        {activeScan && (
+          <g key={activeScan.id}>
+            {activeScan.shapes.map((shape, s) => (
+              <ShapeView key={s} shape={shape} finding={activeScan} x={x} y={y} candles={candles} boxes={boxes} delay={0} scan />
+            ))}
+          </g>
+        )}
 
         {/* Your stop loss and take profit, across the replay zone. */}
         {levels &&
@@ -85,7 +96,7 @@ export function Markup({ project, candles, entryIndex, shownCount, exitColor, fi
 
       {/* Name tags. HTML instead of SVG so they size themselves to the text. */}
       {showFindings &&
-        findings.map((f, k) => {
+        [...findings, ...(activeScan ? [activeScan] : [])].map((f, k) => {
           const tag = tagPosition(f, x, y, candles)
           if (!tag) return null
           const isCandle = f.type === 'candle'
@@ -148,13 +159,21 @@ interface ShapeProps {
   candles: Candle[]
   boxes: CandleBoxShape[]
   delay: number
+  scan?: boolean // a scanner result rather than the built-in markup
 }
 
 // One shape, drawn in with a quick pen stroke.
-function ShapeView({ shape, finding, x, y, candles, boxes, delay }: ShapeProps) {
-  const draw = { initial: { pathLength: 0 }, animate: { pathLength: 1 }, transition: { duration: 0.55, delay, ease: 'easeOut' as const } }
+function ShapeView({ shape, finding, x, y, candles, boxes, delay, scan }: ShapeProps) {
+  // Solid lines are drawn in like a pen stroke. The pen effect works by
+  // animating the line's dash pattern, which would wipe out a dashed style,
+  // so dashed shapes (levels, scanner results) fade in instead.
+  const penStroke = { initial: { pathLength: 0 }, animate: { pathLength: 1 }, transition: { duration: 0.55, delay, ease: 'easeOut' as const } }
   const fadeIn = { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.3, delay: delay + 0.35 } }
-  const chalk = { stroke: COLORS.chalk, strokeLinecap: 'round' as const, fill: 'none' }
+  const fadeLine = { initial: { opacity: 0 }, animate: { opacity: 0.9 }, transition: { duration: 0.35, delay } }
+  const draw = scan ? fadeLine : penStroke
+  const chalk = scan
+    ? { stroke: '#ececec', strokeLinecap: 'round' as const, fill: 'none', strokeDasharray: '6 5' }
+    : { stroke: COLORS.chalk, strokeLinecap: 'round' as const, fill: 'none' }
 
   switch (shape.kind) {
     case 'line': {
@@ -171,7 +190,7 @@ function ShapeView({ shape, finding, x, y, candles, boxes, delay }: ShapeProps) 
       const [x1, x2, py] = [x(shape.fromIndex), x(shape.toIndex), y(shape.price)]
       return (
         <g>
-          <motion.line x1={x1} y1={py} x2={x2} y2={py} strokeWidth={1.5} strokeDasharray="7 5" opacity={0.9} {...chalk} {...draw} />
+          <motion.line x1={x1} y1={py} x2={x2} y2={py} strokeWidth={1.5} {...chalk} strokeDasharray="7 5" {...fadeLine} />
           {shape.label && <motion.text x={x1 + 4} y={py - 6} fill={COLORS.chalk} fontSize={10.5} {...fadeIn}>{shape.label}</motion.text>}
         </g>
       )
@@ -188,11 +207,17 @@ function ShapeView({ shape, finding, x, y, candles, boxes, delay }: ShapeProps) 
       return (
         <motion.g {...fadeIn}>
           <circle cx={cx} cy={cy} r={4} fill={COLORS.card} stroke={COLORS.chalk} strokeWidth={1.75} />
-          <text x={label.x} y={label.y} textAnchor={label.anchor} fill="#cfcfcf" fontSize={10.5} fontWeight={500}>
-            {shape.label}
-          </text>
+          {shape.label && (
+            <text x={label.x} y={label.y} textAnchor={label.anchor} fill="#cfcfcf" fontSize={10.5} fontWeight={500}>
+              {shape.label}
+            </text>
+          )}
         </motion.g>
       )
+    }
+    case 'curve': {
+      const d = shape.points.map((p, k) => `${k === 0 ? 'M' : 'L'} ${x(p.index)} ${y(p.price)}`).join(' ')
+      return <motion.path d={d} strokeWidth={2.5} strokeLinejoin="round" opacity={0.85} {...chalk} {...draw} />
     }
     case 'candles': {
       const { top, bottom } = candleBox(shape, y, candles)

@@ -9,7 +9,7 @@ import { DifficultyBadge } from '../components/DifficultyBadge'
 import { COLORS } from '../theme'
 import { formatR, formatSignedMoney, formatSignedPercent } from '../format'
 import { riskAndReward, sign, type TradePlan, type TradeResult } from '../lib/trade'
-import type { Candle } from '../types'
+import type { Candle, Finding } from '../types'
 
 interface Props {
   review: Review
@@ -77,6 +77,19 @@ export function BreakdownView({ review, onSettle, onNext }: Props) {
   const exitColor = favorable > 0 ? COLORS.up : favorable < 0 ? COLORS.down : COLORS.chalk
 
   const activeFinding = b.findings.find((f) => f.id === activeId)
+  const activeScan = b.scanned.find((f) => f.id === activeId)
+  // Everything a pattern chip needs to highlight its pattern on the chart.
+  const chip = (f: Finding, scanner = false) => (
+    <PatternChip
+      key={f.id}
+      finding={f}
+      scanner={scanner}
+      active={activeId === f.id}
+      pinned={pinnedId === f.id}
+      onToggle={() => setPinnedId((id) => (id === f.id ? null : f.id))}
+      onHover={(on) => setHoveredId(on ? f.id : null)}
+    />
+  )
 
   return (
     <div className="h-full overflow-y-auto lg:overflow-hidden">
@@ -121,6 +134,7 @@ export function BreakdownView({ review, onSettle, onNext }: Props) {
                   shownCount={shown}
                   exitColor={exitColor}
                   findings={b.findings}
+                  scanned={b.scanned}
                   showFindings={done}
                   activeId={activeId}
                   levels={b.plan && { stop: b.plan.stop, target: b.plan.target }}
@@ -156,26 +170,7 @@ export function BreakdownView({ review, onSettle, onNext }: Props) {
 
               <Reveal>
                 <SectionTitle>Patterns spotted</SectionTitle>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {b.findings.map((f) => (
-                    <button
-                      key={f.id}
-                      onClick={() => setPinnedId((id) => (id === f.id ? null : f.id))}
-                      onMouseEnter={() => setHoveredId(f.id)}
-                      onMouseLeave={() => setHoveredId(null)}
-                      aria-pressed={pinnedId === f.id}
-                      className={`flex min-h-11 items-center gap-2 rounded-full border px-4 text-[15px] transition-colors ${
-                        activeId === f.id ? 'border-neutral-500 bg-neutral-900 text-white' : 'border-neutral-800 bg-card text-neutral-200 hover:border-neutral-600'
-                      }`}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={f.type === 'candle' ? 'size-2.5 rounded-[3px] border border-marker bg-marker/20' : 'h-0.5 w-3 rounded-full bg-chalk'}
-                      />
-                      {f.name}
-                    </button>
-                  ))}
-                </div>
+                <div className="mt-3 flex flex-wrap gap-2">{b.findings.map((f) => chip(f))}</div>
                 <p className="mt-3 min-h-[3lh] text-sm leading-relaxed text-soft">
                   {activeFinding ? (
                     <>
@@ -206,6 +201,31 @@ export function BreakdownView({ review, onSettle, onNext }: Props) {
               )}
 
               <Reveal>
+                <SectionTitle>Pattern scanner</SectionTitle>
+                <p className="mt-2 text-sm leading-relaxed text-muted">
+                  Reading only the candles, the way it will read real charts, the scanner found:
+                </p>
+                {b.scanned.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">{b.scanned.map((f) => chip(f, true))}</div>
+                ) : (
+                  <p className="mt-2 text-sm text-soft">No clear chart pattern.</p>
+                )}
+                {activeScan && (
+                  <p className="mt-3 text-sm leading-relaxed text-soft">
+                    <span className="font-semibold text-white">{activeScan.name}. </span>
+                    {activeScan.meaning}
+                  </p>
+                )}
+                {b.scannerAgrees !== null && (
+                  <p className="mt-3 text-sm leading-relaxed text-soft">
+                    {b.scannerAgrees
+                      ? `It spotted the ${card.setup.name.toLowerCase()} built into this chart.`
+                      : `It missed the ${card.setup.name.toLowerCase()} built into this chart. Messy charts fool scanners as well as people.`}
+                  </p>
+                )}
+              </Reveal>
+
+              <Reveal>
                 <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-neutral-700 px-4 py-3.5">
                   <span className="text-sm text-muted">Generated chart</span>
                   <span className="text-right font-mono text-sm text-soft">{card.setup.name}</span>
@@ -226,6 +246,39 @@ export function BreakdownView({ review, onSettle, onNext }: Props) {
         </aside>
       </div>
     </div>
+  )
+}
+
+interface ChipProps {
+  finding: Finding
+  scanner: boolean // a scanner result (dashed) rather than the built-in markup
+  active: boolean
+  pinned: boolean
+  onToggle: () => void
+  onHover: (on: boolean) => void
+}
+
+// A pattern name you can hover or tap to highlight it on the chart.
+function PatternChip({ finding, scanner, active, pinned, onToggle, onHover }: ChipProps) {
+  const swatch =
+    finding.type === 'candle'
+      ? 'size-2.5 rounded-[3px] border border-marker bg-marker/20'
+      : scanner
+        ? 'w-3 border-t-2 border-dashed border-neutral-200'
+        : 'h-0.5 w-3 rounded-full bg-chalk'
+  return (
+    <button
+      onClick={onToggle}
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+      aria-pressed={pinned}
+      className={`flex min-h-11 items-center gap-2 rounded-full border px-4 text-[15px] transition-colors ${scanner ? 'border-dashed' : ''} ${
+        active ? 'border-neutral-500 bg-neutral-900 text-white' : 'border-neutral-800 bg-card text-neutral-200 hover:border-neutral-600'
+      }`}
+    >
+      <span aria-hidden="true" className={swatch} />
+      {finding.name}
+    </button>
   )
 }
 

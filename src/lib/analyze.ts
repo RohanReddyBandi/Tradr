@@ -1,5 +1,7 @@
 import type { Bias, ChartCard, Decision, Finding } from '../types'
 import { findSignalPatterns } from './candlePatterns'
+import { findChartPatterns, pickChartPatterns } from './chartPatterns'
+import { SCANNER_MATCHES } from './setups'
 import { FUTURE_CANDLES } from './generator'
 import { defaultPlan, simulateTrade, type TradePlan, type TradeResult } from './trade'
 import { reviewStopAndTarget, type StopTargetReview } from './riskReview'
@@ -34,6 +36,8 @@ export interface Breakdown {
   pnl: number // dollars won or lost (0 when skipped)
   risk: StopTargetReview | null // how good your stop and target were
   findings: Finding[] // everything to name and draw, chart patterns first
+  scanned: Finding[] // what the pattern scanner found reading only the candles
+  scannerAgrees: boolean | null // did it find the built-in setup? (null when there's none to find)
   headline: string
   chartText: string // "What the chart was saying"
   callText: string // "Your call"
@@ -102,6 +106,23 @@ export function analyze(card: ChartCard, decision: Decision, plan: TradePlan | n
 
   const risk = plan ? reviewStopAndTarget(card.candles, plan) : null
 
+  // --- The scanner: the same candles, read with no answer key ----------------
+  // This is how real charts will be read. On generated charts we can check it.
+  const scannedMatches = pickChartPatterns(findChartPatterns(card.candles))
+  const scanned: Finding[] = scannedMatches.map((m) => ({
+    id: `scan-${m.pattern.key}`,
+    name: m.pattern.name,
+    type: 'chart',
+    bias: m.bias,
+    meaning: m.pattern.meaning,
+    shapes: m.shapes,
+    labelAt: m.labelAt,
+  }))
+  const expected = SCANNER_MATCHES[setup.key]
+  const scannerAgrees = expected
+    ? findChartPatterns(card.candles).some((m) => expected.includes(m.pattern.key) && (m.bias === bias || m.bias === 'neutral'))
+    : null
+
   return {
     decision,
     bias,
@@ -115,6 +136,8 @@ export function analyze(card: ChartCard, decision: Decision, plan: TradePlan | n
     pnl: result?.pnl ?? 0,
     risk,
     findings: [...setup.chartFindings, ...candleFindings],
+    scanned,
+    scannerAgrees,
     headline: headlineFor(grade, outcome),
     chartText: [setup.story, candleText, decoyText, leaning, hardText].filter(Boolean).join(' '),
     callText: callTextFor(decision, bias, grade, outcome, movePct, plan, result, missed),

@@ -727,3 +727,17 @@ export const SETUPS: SetupRecipe[] = [
   structure,
   chop,
 ]
+
+// Which patterns the scanner (chartPatterns.ts) should report for each setup.
+// Used to check the scanner against charts where we know the answer.
+export const SCANNER_MATCHES: Record<string, string[]> = {
+  flag: ['bullFlag', 'bearFlag', 'bullishPennant', 'bearishPennant'],
+  double: ['doubleBottom', 'doubleTop', 'tripleBottom', 'tripleTop'],
+  channel: ['ascendingChannel', 'descendingChannel', 'breakout', 'breakdown'],
+  headShoulders: ['inverseHeadAndShoulders', 'headAndShoulders'],
+  triangle: ['ascendingTriangle', 'descendingTriangle', 'breakout', 'breakdown'],
+  support: ['supportLevel', 'resistanceLevel', 'doubleBottom', 'doubleTop', 'tripleBottom', 'tripleTop'],
+  wedge: ['fallingWedge', 'risingWedge', 'breakout', 'breakdown'],
+  falseBreak: ['falseBreakdown', 'falseBreakout'],
+  structure: ['higherHighsHigherLows', 'lowerHighsLowerLows', 'ascendingChannel', 'descendingChannel'],
+}
