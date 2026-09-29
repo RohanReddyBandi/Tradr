@@ -1,11 +1,18 @@
 import { useState } from 'react'
 import type { ChartCard, Decision } from '../types'
 import { generateCard } from '../lib/generator'
-import { analyze, DEFAULT_POSITION_SHARE, type Breakdown } from '../lib/analyze'
+import { analyze, type Breakdown } from '../lib/analyze'
+import { DEFAULT_POSITION_SHARE, type Direction, type TradePlan } from '../lib/trade'
 
 export const STARTING_BALANCE = 10_000
 
-// A card you've made a call on.
+// A card you swiped buy or sell on, waiting for you to set up the trade.
+export interface PendingTrade {
+  card: ChartCard
+  direction: Direction
+}
+
+// A card you've finished, ready for its Breakdown.
 export interface Review {
   card: ChartCard
   breakdown: Breakdown
@@ -18,15 +25,35 @@ export function useGame() {
   const [balance, setBalance] = useState(STARTING_BALANCE)
   const [history, setHistory] = useState<Review[]>([])
   const [deck, setDeck] = useState<ChartCard[]>(() => [1, 2, 3].map((n) => generateCard(n)))
+  const [pending, setPending] = useState<PendingTrade | null>(null)
   const [review, setReview] = useState<Review | null>(null)
 
-  // You swiped: grade the call and open the Breakdown.
+  // The usual position size, used as the default and to show what skips missed.
+  const stake = Math.round(balance * DEFAULT_POSITION_SHARE * 100) / 100
+
+  // Grade the card, open its Breakdown, and move the deck along.
+  function finish(card: ChartCard, decision: Decision, plan: TradePlan | null) {
+    setReview({ card, breakdown: analyze(card, decision, plan, stake), settled: false })
+    setDeck((cards) => [...cards.slice(1), generateCard(cards[cards.length - 1].number + 1)])
+  }
+
+  // You swiped. A skip goes straight to the Breakdown; buy and sell open the trade setup.
   function decide(decision: Decision) {
     const card = deck[0]
-    const size = Math.round(balance * DEFAULT_POSITION_SHARE * 100) / 100
-    setReview({ card, breakdown: analyze(card, decision, size), settled: false })
-    // Take the card off the top and add a fresh one to the bottom.
-    setDeck((cards) => [...cards.slice(1), generateCard(cards[cards.length - 1].number + 1)])
+    if (decision === 'skip') finish(card, 'skip', null)
+    else setPending({ card, direction: decision === 'buy' ? 'long' : 'short' })
+  }
+
+  // You confirmed the trade on the setup screen.
+  function enterTrade(plan: TradePlan) {
+    if (!pending) return
+    finish(pending.card, plan.direction === 'long' ? 'buy' : 'sell', plan)
+    setPending(null)
+  }
+
+  // You backed out of the setup screen: the card is still on top of the deck.
+  function cancelTrade() {
+    setPending(null)
   }
 
   // The replay finished: now the result counts. Guarded so it only happens once.
@@ -44,7 +71,7 @@ export function useGame() {
     setReview(null)
   }
 
-  return { balance, history, deck, review, decide, settle, next }
+  return { balance, history, deck, pending, review, decide, enterTrade, cancelTrade, settle, next }
 }
 
 export type Game = ReturnType<typeof useGame>

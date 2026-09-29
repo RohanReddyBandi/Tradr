@@ -5,8 +5,11 @@ import { GRADE_LABEL, isGoodGrade, type Breakdown } from '../lib/analyze'
 import { FUTURE_CANDLES } from '../lib/generator'
 import { CandleChart } from '../components/CandleChart'
 import { Markup } from '../components/Markup'
+import { DifficultyBadge } from '../components/DifficultyBadge'
 import { COLORS } from '../theme'
-import { formatMoney, formatSignedMoney, formatSignedPercent } from '../format'
+import { formatR, formatSignedMoney, formatSignedPercent } from '../format'
+import { riskAndReward, sign, type TradePlan, type TradeResult } from '../lib/trade'
+import type { Candle } from '../types'
 
 interface Props {
   review: Review
@@ -56,19 +59,21 @@ export function BreakdownView({ review, onSettle, onNext }: Props) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [done, allCandles.length, onNext])
 
-  // Keep the price axis still during the replay.
-  const priceRange = useMemo(
-    () => ({ min: Math.min(...allCandles.map((c) => c.low)), max: Math.max(...allCandles.map((c) => c.high)) }),
-    [allCandles],
-  )
+  // Keep the price axis still during the replay, and tall enough to show
+  // your stop and target even if price never got near them.
+  const priceRange = useMemo(() => {
+    const prices = allCandles.flatMap((c) => [c.low, c.high])
+    if (b.plan) prices.push(b.plan.stop, b.plan.target)
+    return { min: Math.min(...prices), max: Math.max(...prices) }
+  }, [allCandles, b.plan])
   const visibleCandles = useMemo(() => allCandles.slice(0, shown), [allCandles, shown])
 
-  // The result so far, updated as each replayed candle arrives.
-  const latest = allCandles[shown - 1].close
-  const movePct = ((latest - b.entry) / b.entry) * 100
-  const yourDirection = b.decision === 'buy' ? 1 : b.decision === 'sell' ? -1 : 0
-  const livePnl = b.size * (movePct / 100) * yourDirection
-  const favorable = b.decision === 'skip' ? 0 : Math.sign(livePnl)
+  // The numbers so far, updated as each replayed candle arrives.
+  const revealed = shown - card.candles.length // replay candles on screen
+  const movePct = ((allCandles[shown - 1].close - b.entry) / b.entry) * 100
+  const live = b.plan && b.result ? liveResult(b.plan, b.result, card.future, revealed) : null
+  const liveMissed = b.missed ? liveResult(b.missed.plan, b.missed.result, card.future, revealed) : null
+  const favorable = live ? Math.sign(live.pnl) : 0
   const exitColor = favorable > 0 ? COLORS.up : favorable < 0 ? COLORS.down : COLORS.chalk
 
   const activeFinding = b.findings.find((f) => f.id === activeId)
@@ -79,9 +84,12 @@ export function BreakdownView({ review, onSettle, onNext }: Props) {
         {/* Left: the verdict, the numbers, and the chart. */}
         <section className="flex flex-col gap-5 lg:min-h-0">
           <div>
-            <div className="flex items-baseline justify-between text-[13px] text-muted">
+            <div className="flex items-center justify-between text-[13px] text-muted">
               <span className="text-[11px] tracking-[0.08em] uppercase">Breakdown</span>
-              <span>Card {card.number}</span>
+              <span className="flex items-center gap-3">
+                <DifficultyBadge difficulty={card.difficulty} />
+                Card {card.number}
+              </span>
             </div>
             <h1 className="mt-2 text-[28px] leading-[1.1] font-bold tracking-tight text-balance lg:text-[38px]">
               {done ? (
@@ -94,7 +102,7 @@ export function BreakdownView({ review, onSettle, onNext }: Props) {
             </h1>
           </div>
 
-          <ResultCard b={b} movePct={movePct} livePnl={livePnl} favorable={favorable} />
+          <ResultCard b={b} movePct={movePct} live={live} liveMissed={liveMissed} />
 
           <div
             className="relative h-[320px] rounded-3xl border border-edge bg-card px-2 pt-3 pb-2 lg:min-h-[360px] lg:flex-1"
@@ -115,6 +123,8 @@ export function BreakdownView({ review, onSettle, onNext }: Props) {
                   findings={b.findings}
                   showFindings={done}
                   activeId={activeId}
+                  levels={b.plan && { stop: b.plan.stop, target: b.plan.target }}
+                  exit={b.result && { index: entryIndex + 1 + b.result.exit.index, price: b.result.exit.price }}
                 />
               )}
             />
@@ -188,6 +198,13 @@ export function BreakdownView({ review, onSettle, onNext }: Props) {
                 <p className="mt-2 text-[16px] leading-relaxed text-neutral-200">{b.callText}</p>
               </Reveal>
 
+              {b.riskText && (
+                <Reveal>
+                  <SectionTitle>Your stop and target</SectionTitle>
+                  <p className="mt-2 text-[16px] leading-relaxed text-neutral-200">{b.riskText}</p>
+                </Reveal>
+              )}
+
               <Reveal>
                 <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-neutral-700 px-4 py-3.5">
                   <span className="text-sm text-muted">Generated chart</span>
@@ -224,27 +241,55 @@ function SectionTitle({ children }: { children: ReactNode }) {
   return <h2 className="text-[13px] font-semibold tracking-[0.08em] text-muted uppercase">{children}</h2>
 }
 
-function ResultCard({ b, movePct, livePnl, favorable }: { b: Breakdown; movePct: number; livePnl: number; favorable: number }) {
-  const tone = favorable > 0 ? 'text-up' : favorable < 0 ? 'text-down' : 'text-soft'
-  const position = b.decision === 'buy' ? 'Long' : b.decision === 'sell' ? 'Short' : null
+interface Live {
+  pnl: number
+  r: number
+  closed: boolean // has the trade hit its stop or target (or the last candle) yet?
+}
 
+// Where a trade stands after `revealed` replay candles: the final result once
+// it has closed, otherwise its value at the latest close ("marked to market").
+function liveResult(plan: TradePlan, result: TradeResult, future: Candle[], revealed: number): Live {
+  if (revealed <= 0) return { pnl: 0, r: 0, closed: false }
+  if (revealed - 1 >= result.exit.index) return { pnl: result.pnl, r: result.r, closed: true }
+  const shares = plan.size / plan.entry
+  const pnl = shares * (future[revealed - 1].close - plan.entry) * sign(plan.direction)
+  const { risk } = riskAndReward(plan)
+  return { pnl, r: risk > 0 ? pnl / risk : 0, closed: false }
+}
+
+const EXIT_LABEL = { stop: 'Stopped out', target: 'Target hit', end: `Held ${FUTURE_CANDLES} days` }
+
+function ResultCard({ b, movePct, live, liveMissed }: { b: Breakdown; movePct: number; live: Live | null; liveMissed: Live | null }) {
+  // Skipped: show how far price moved, and what trading the setup would have done.
+  if (!b.plan || !b.result || !live) {
+    return (
+      <div className="flex items-end justify-between rounded-3xl border border-edge bg-card px-5 py-4">
+        <div>
+          <div className="text-[13px] font-medium text-soft">Skipped · no position</div>
+          <div className="mt-1 font-mono text-[32px] leading-none font-medium text-soft tabular-nums">{formatSignedPercent(movePct)}</div>
+        </div>
+        {liveMissed && (
+          <div className="text-right">
+            <div className="text-[13px] text-muted">Trading the setup</div>
+            <div className="mt-1 font-mono text-lg tabular-nums">{formatSignedMoney(liveMissed.pnl)}</div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const tone = live.pnl > 0 ? 'text-up' : live.pnl < 0 ? 'text-down' : 'text-soft'
+  const side = b.plan.direction === 'long' ? 'Long' : 'Short'
   return (
     <div className="flex items-end justify-between rounded-3xl border border-edge bg-card px-5 py-4">
       <div>
-        <div className={`text-[13px] font-medium ${position ? tone : 'text-soft'}`}>
-          {position ? `${position} · ${formatMoney(b.size)} position` : 'Skipped · no position'}
-        </div>
-        <div className={`mt-1 font-mono text-[32px] leading-none font-medium tabular-nums ${position ? tone : 'text-soft'}`}>
-          {position ? formatSignedMoney(livePnl) : formatSignedPercent(movePct)}
-        </div>
+        <div className={`text-[13px] font-medium ${tone}`}>{live.closed ? `${EXIT_LABEL[b.result.exit.reason]} · ${side}` : `In the trade · ${side}`}</div>
+        <div className={`mt-1 font-mono text-[32px] leading-none font-medium tabular-nums ${tone}`}>{formatSignedMoney(live.pnl)}</div>
       </div>
       <div className="text-right">
-        <div className="text-[13px] text-muted">{position ? 'Price move' : b.bias === 'neutral' ? 'Price move' : 'With the setup'}</div>
-        <div className="mt-1 font-mono text-lg tabular-nums">
-          {position || b.bias === 'neutral'
-            ? formatSignedPercent(movePct)
-            : formatSignedMoney(b.stake * (movePct / 100) * (b.bias === 'bullish' ? 1 : -1))}
-        </div>
+        <div className="text-[13px] text-muted">R-multiple</div>
+        <div className="mt-1 font-mono text-lg tabular-nums">{formatR(live.r)}</div>
       </div>
     </div>
   )

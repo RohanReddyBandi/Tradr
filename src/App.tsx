@@ -38,7 +38,8 @@ export default function App() {
               </ComingSoonPage>
             )}
           </main>
-          <TabBar active={tab} onChange={setTab} />
+          {/* The trade setup is a focused step with its own back button, so the phone tabs step aside. */}
+          {!(tab === 'swipe' && game.pending) && <TabBar active={tab} onChange={setTab} />}
         </div>
       </div>
     </MotionConfig>

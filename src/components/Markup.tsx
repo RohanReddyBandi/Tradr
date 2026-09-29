@@ -12,12 +12,14 @@ interface Props {
   findings: Finding[]
   showFindings: boolean // patterns are drawn once the replay is done
   activeId: string | null // the pattern chip being hovered or tapped
+  levels: { stop: number; target: number } | null // your stop loss and take profit
+  exit: { index: number; price: number } | null // where the trade closed (candle index, price)
 }
 
 // Everything drawn on top of the Breakdown chart: the replay zone, entry and
 // exit markers, and the pattern markup (grey for chart patterns, yellow for
 // candlestick patterns).
-export function Markup({ project, candles, entryIndex, shownCount, exitColor, findings, showFindings, activeId }: Props) {
+export function Markup({ project, candles, entryIndex, shownCount, exitColor, findings, showFindings, activeId, levels, exit }: Props) {
   const { width, height } = project
   const x = (index: number) => project.x(index) ?? -100
   const y = (price: number) => project.y(price) ?? -100
@@ -26,6 +28,9 @@ export function Markup({ project, candles, entryIndex, shownCount, exitColor, fi
   const entry = candles[entryIndex]
   const latest = candles[shownCount - 1]
   const replaying = shownCount - 1 > entryIndex
+  // Once the replay reaches the exit, the marker stays there; before that it follows price.
+  const exited = exit && shownCount - 1 >= exit.index
+  const marker = exited ? { index: exit.index, price: exit.price } : replaying ? { index: shownCount - 1, price: latest.close } : null
 
   // The candles outlined in yellow. Dot labels that land on them move aside.
   const boxes = findings.flatMap((f) => f.shapes.filter((s): s is CandleBoxShape => s.kind === 'candles'))
@@ -53,11 +58,25 @@ export function Markup({ project, candles, entryIndex, shownCount, exitColor, fi
             </g>
           ))}
 
-        {/* Where you got in, and where the replay has got to. */}
-        {replaying && latest && (
+        {/* Your stop loss and take profit, across the replay zone. */}
+        {levels &&
+          [
+            { price: levels.target, color: COLORS.up, tag: 'TP' },
+            { price: levels.stop, color: COLORS.down, tag: 'SL' },
+          ].map((l) => (
+            <g key={l.tag} opacity={0.75}>
+              <line x1={divider} y1={y(l.price)} x2={width} y2={y(l.price)} stroke={l.color} strokeWidth={1.25} strokeDasharray="3 4" />
+              <text x={width - 6} y={y(l.price) - 5} textAnchor="end" fill={l.color} fontSize={10.5} fontWeight={600}>
+                {l.tag}
+              </text>
+            </g>
+          ))}
+
+        {/* Where you got in, and where you got out (or where the replay has got to). */}
+        {marker && (
           <>
-            <line x1={divider} y1={y(latest.close)} x2={x(shownCount - 1)} y2={y(latest.close)} stroke={exitColor} strokeWidth={1.5} strokeDasharray="4 4" />
-            <circle cx={x(shownCount - 1)} cy={y(latest.close)} r={5} fill="none" stroke={exitColor} strokeWidth={2} />
+            <line x1={divider} y1={y(marker.price)} x2={x(marker.index)} y2={y(marker.price)} stroke={exitColor} strokeWidth={1.5} strokeDasharray="4 4" />
+            <circle cx={x(marker.index)} cy={y(marker.price)} r={5.5} fill={COLORS.card} stroke={exitColor} strokeWidth={2} />
           </>
         )}
         <line x1={x(entryIndex)} y1={y(entry.close)} x2={x(entryIndex) + 22} y2={y(entry.close)} stroke="#e8e8e8" strokeWidth={1.5} />

@@ -17,6 +17,7 @@ import { COLORS, MONO_FONT } from '../theme'
 export interface Projector {
   x: (index: number) => number | null
   y: (price: number) => number | null
+  toPrice: (y: number) => number | null // the other way: pixel height to price
   width: number // drawing area, not counting the price axis
   height: number
 }
@@ -139,6 +140,7 @@ export function CandleChart({ candles, slots, priceRange, overlay, label }: Prop
       ? {
           x: xAt,
           y: (price) => api.series.priceToCoordinate(price),
+          toPrice: (y) => api.series.coordinateToPrice(y),
           // (Not timeScale().width(): the time axis is hidden, so that reports 0.)
           width: api.chart.paneSize(0).width,
           height: api.chart.paneSize(0).height,
@@ -148,7 +150,9 @@ export function CandleChart({ candles, slots, priceRange, overlay, label }: Prop
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} role="img" aria-label={label ?? `Candlestick chart of ${candles.length} daily candles`} className="h-full w-full" />
-      {project && project.width > 0 && overlay?.(project)}
+      {/* z-10 lifts the drawing above the chart's own canvases. It ignores the
+          mouse except where a drawing opts back in (like the draggable lines). */}
+      {project && project.width > 0 && <div className="pointer-events-none absolute inset-0 z-10">{overlay?.(project)}</div>}
     </div>
   )
 }

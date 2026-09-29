@@ -157,3 +157,32 @@ export const REVERSAL_SIGNALS: SignalKey[] = [
 
 // Candles that push price through a line.
 export const BREAKOUT_SIGNALS: SignalKey[] = ['bullishMarubozu', 'threeWhiteSoldiers']
+
+// Big, obvious signals, used on easy cards...
+export const STRONG_SIGNALS: SignalKey[] = [
+  'bullishEngulfing',
+  'morningStar',
+  'hammer',
+  'piercingLine',
+  'threeOutsideUp',
+  'bullishMarubozu',
+  'threeWhiteSoldiers',
+  'risingThreeMethods',
+  'doji',
+  'longLeggedDoji',
+]
+
+// ...and quieter ones that are easy to miss, used on hard cards.
+export const SUBTLE_SIGNALS: SignalKey[] = [
+  'bullishHarami',
+  'invertedHammer',
+  'tweezerBottom',
+  'dragonflyDoji',
+  'threeInsideUp',
+  'abandonedBaby',
+  'spinningTop',
+]
+
+// Hard cards sometimes end with one of these in the middle of a choppy range:
+// a strong-looking candle with nothing behind it.
+export const DECOY_SIGNALS: SignalKey[] = ['bullishMarubozu', 'bullishEngulfing']

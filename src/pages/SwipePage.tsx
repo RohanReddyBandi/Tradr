@@ -6,6 +6,7 @@ import { SwipeCard, type SwipeCardHandle } from '../components/SwipeCard'
 import { SessionPanel } from '../components/SessionPanel'
 import { LogoIcon } from '../components/icons'
 import { BreakdownView } from './BreakdownView'
+import { TradeSetupView } from './TradeSetupView'
 import { formatMoney } from '../format'
 
 const KEY_TO_DECISION: Record<string, Decision> = {
@@ -14,11 +15,23 @@ const KEY_TO_DECISION: Record<string, Decision> = {
   ArrowUp: 'skip',
 }
 
-// The Swipe tab: the card deck, or the Breakdown of the card you just played.
+// The Swipe tab has three screens: the card deck, the trade setup after a buy
+// or sell, and the Breakdown once the trade has played out.
 export function SwipePage({ game }: { game: Game }) {
   return (
     <AnimatePresence mode="wait" initial={false}>
-      {game.review ? (
+      {game.pending ? (
+        <motion.div
+          key={`setup-${game.pending.card.id}`}
+          className="h-full"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <TradeSetupView pending={game.pending} balance={game.balance} onConfirm={game.enterTrade} onCancel={game.cancelTrade} />
+        </motion.div>
+      ) : game.review ? (
         <motion.div
           key={`review-${game.review.card.id}`}
           className="h-full"

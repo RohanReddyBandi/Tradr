@@ -11,6 +11,7 @@ import {
 } from 'motion/react'
 import type { ChartCard, Decision } from '../types'
 import { CandleChart } from './CandleChart'
+import { DifficultyBadge } from './DifficultyBadge'
 
 // Let go after dragging this far (px) and it counts as a swipe...
 const SWIPE_DISTANCE = 110
@@ -151,7 +152,10 @@ export function SwipeCard({ card, isTop, onDecision, progress, ref }: Props) {
           <div className="text-[11px] tracking-[0.08em] text-muted uppercase">Last close</div>
           <div className="mt-1 font-mono text-[26px] leading-none font-medium">{lastClose.toFixed(2)}</div>
         </div>
-        <div className="text-lg font-bold tracking-tight">What's your call?</div>
+        <div className="text-right">
+          <DifficultyBadge difficulty={card.difficulty} />
+          <div className="mt-1.5 text-lg leading-none font-bold tracking-tight">What's your call?</div>
+        </div>
       </div>
 
       {/* Stamps that fade in while dragging, like a dating app. */}

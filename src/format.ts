@@ -11,6 +11,13 @@ export function formatSignedMoney(amount: number) {
   return `${sign}${formatMoney(Math.abs(rounded))}`
 }
 
+// "+2.0R" or "−1.0R": a result measured in multiples of what you risked.
+export function formatR(r: number) {
+  const rounded = Math.round(r * 10) / 10
+  const sign = rounded > 0 ? '+' : rounded < 0 ? '−' : ''
+  return `${sign}${Math.abs(rounded).toFixed(1)}R`
+}
+
 // "+4.2%" or "−1.8%"
 export function formatSignedPercent(percent: number) {
   const rounded = Math.round(percent * 10) / 10

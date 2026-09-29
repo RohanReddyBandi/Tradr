@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { findSignalPatterns } from './candlePatterns'
 import { FUTURE_CANDLES, SETUP_WIN_RATE, VISIBLE_CANDLES, generateCard } from './generator'
 import { analyze } from './analyze'
+import { defaultPlan } from './trade'
 
 // Build lots of cards from fixed seeds so the test gives the same answer every run.
 const cards = Array.from({ length: 1500 }, (_, i) => generateCard(i + 1, i * 7919 + 13))
@@ -25,7 +26,8 @@ describe('generateCard', () => {
 
   it('finishes almost every setup with a candle pattern that agrees with it', () => {
     const misses: string[] = []
-    for (const card of cards) {
+    // Decoy cards are left out on purpose: their last candle is meant to mislead.
+    for (const card of cards.filter((c) => !c.difficultyNotes.some((n) => n.includes('decoy')))) {
       const signals = findSignalPatterns(card.candles)
       const agrees = signals.some((m) => m.pattern.bias === card.setup.bias)
       if (!agrees) misses.push(`${card.setup.name}: ${signals.map((m) => m.pattern.name).join(', ') || 'nothing'}`)
@@ -46,12 +48,43 @@ describe('generateCard', () => {
 
   it('lets setups work roughly as often as SETUP_WIN_RATE', () => {
     const directional = cards.filter((c) => c.setup.bias !== 'neutral')
+    // Held to the end (a very wide stop and target), trading with the setup should win about SETUP_WIN_RATE of the time.
     const worked = directional.filter((c) => {
-      const b = analyze(c, c.setup.bias === 'bullish' ? 'buy' : 'sell', 1000)
-      return b.pnl > 0
+      const long = c.setup.bias === 'bullish'
+      const entry = c.candles[c.candles.length - 1].close
+      const plan = { direction: long ? 'long' : 'short', entry, size: 1000, stop: long ? entry * 0.01 : entry * 10, target: long ? entry * 10 : entry * 0.01 } as const
+      return analyze(c, long ? 'buy' : 'sell', plan, 1000).pnl > 0
     })
     expect(worked.length / directional.length).toBeGreaterThan(SETUP_WIN_RATE - 0.07)
     expect(worked.length / directional.length).toBeLessThan(SETUP_WIN_RATE + 0.07)
+  })
+
+  it('makes a mix of difficulties, each with its own setups and signals', () => {
+    const count = (d: string) => cards.filter((c) => c.difficulty === d).length / cards.length
+    expect(count('easy')).toBeGreaterThan(0.25)
+    expect(count('medium')).toBeGreaterThan(0.33)
+    expect(count('hard')).toBeGreaterThan(0.25)
+    // Easy cards stick to the clearest setups; hard cards say why they're hard.
+    const easySetups = new Set(cards.filter((c) => c.difficulty === 'easy').map((c) => c.setup.key))
+    expect([...easySetups].sort()).toEqual(['chop', 'double', 'flag', 'support', 'triangle'])
+    expect(cards.filter((c) => c.difficulty === 'hard').every((c) => c.difficultyNotes.length >= 2)).toBe(true)
+  })
+
+  it('still finishes hard setups with an agreeing signal almost every time', () => {
+    const hard = Array.from({ length: 600 }, (_, i) => generateCard(i + 1, i * 104729 + 7, 'hard')).filter(
+      (c) => c.setup.bias !== 'neutral',
+    )
+    const agreeing = hard.filter((c) => findSignalPatterns(c.candles).some((m) => m.pattern.bias === c.setup.bias))
+    expect(agreeing.length / hard.length).toBeGreaterThan(0.93)
+  })
+
+  it('puts decoy candles on some hard choppy charts', () => {
+    const hardChop = Array.from({ length: 1500 }, (_, i) => generateCard(i + 1, i * 7 + 3, 'hard')).filter(
+      (c) => c.setup.key === 'chop',
+    )
+    const decoys = hardChop.filter((c) => findSignalPatterns(c.candles).some((m) => m.pattern.bias !== 'neutral'))
+    expect(decoys.length / hardChop.length).toBeGreaterThan(0.5)
+    expect(analyze(decoys[0], 'buy', defaultPlan(decoys[0].candles, 'long', 1000), 1000).chartText).toMatch(/decoy/)
   })
 
   it('uses every setup and both directions', () => {
@@ -64,18 +97,24 @@ describe('analyze', () => {
   const bullish = cards.find((c) => c.setup.bias === 'bullish')!
   const neutral = cards.find((c) => c.setup.bias === 'neutral')!
 
+  const long = defaultPlan(bullish.candles, 'long', 1000)
+  const short = defaultPlan(bullish.candles, 'short', 1000)
+
   it('grades the decision on the setup, not the result', () => {
-    expect(analyze(bullish, 'buy', 1000).grade).toBe('good-read')
-    expect(analyze(bullish, 'sell', 1000).grade).toBe('poor-read')
-    expect(analyze(bullish, 'skip', 1000).grade).toBe('missed-setup')
-    expect(analyze(neutral, 'skip', 1000).grade).toBe('good-pass')
-    expect(analyze(neutral, 'buy', 1000).grade).toBe('no-edge')
+    expect(analyze(bullish, 'buy', long, 1000).grade).toBe('good-read')
+    expect(analyze(bullish, 'sell', short, 1000).grade).toBe('poor-read')
+    expect(analyze(bullish, 'skip', null, 1000).grade).toBe('missed-setup')
+    expect(analyze(neutral, 'skip', null, 1000).grade).toBe('good-pass')
+    expect(analyze(neutral, 'buy', defaultPlan(neutral.candles, 'long', 1000), 1000).grade).toBe('no-edge')
   })
 
-  it('makes buy and sell mirror images in dollars', () => {
-    const buy = analyze(bullish, 'buy', 1000)
-    const sell = analyze(bullish, 'sell', 1000)
-    expect(buy.pnl).toBeCloseTo(-sell.pnl, 2)
-    expect(analyze(bullish, 'skip', 1000).pnl).toBe(0)
+  it('reviews the stop and target on trades, and shows what a skip missed', () => {
+    const traded = analyze(bullish, 'buy', long, 1000)
+    expect(traded.riskText).toBeTruthy()
+    expect(traded.result).not.toBeNull()
+    const skipped = analyze(bullish, 'skip', null, 1000)
+    expect(skipped.pnl).toBe(0)
+    expect(skipped.missed).not.toBeNull()
+    expect(skipped.riskText).toBeNull()
   })
 })

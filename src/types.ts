@@ -46,11 +46,16 @@ export interface Setup {
   chartFindings: Finding[] // chart-pattern shapes to draw
 }
 
+// How hard a chart is to read. Shown on the card before you decide.
+export type Difficulty = 'easy' | 'medium' | 'hard'
+
 // Everything needed to show one swipe card and grade it afterwards.
 export interface ChartCard {
   id: string
   number: number // shown as "Card 14" in the card header
   source: 'generated'
+  difficulty: Difficulty
+  difficultyNotes: string[] // for hard cards: what makes them hard
   candles: Candle[] // what you see before deciding
   future: Candle[] // the next candles, hidden until after you decide
   setup: Setup

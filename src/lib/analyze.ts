@@ -1,14 +1,12 @@
 import type { Bias, ChartCard, Decision, Finding } from '../types'
 import { findSignalPatterns } from './candlePatterns'
 import { FUTURE_CANDLES } from './generator'
+import { defaultPlan, simulateTrade, type TradePlan, type TradeResult } from './trade'
+import { reviewStopAndTarget, type StopTargetReview } from './riskReview'
 import { formatMoney } from '../format'
 
-// Until the trade setup panel exists, every trade uses 10% of your balance
-// and is held for the whole replay.
-export const DEFAULT_POSITION_SHARE = 0.1
-
-// Moves smaller than this (in %) count as going nowhere.
-const FLAT_MOVE = 0.5
+// A result smaller than this many R counts as breaking even.
+const FLAT_R = 0.15
 
 export type Grade = 'good-read' | 'poor-read' | 'no-edge' | 'good-pass' | 'missed-setup'
 export type Outcome = 'win' | 'loss' | 'flat'
@@ -29,52 +27,51 @@ export interface Breakdown {
   grade: Grade // was the decision right, given what the chart showed?
   outcome: Outcome // how the trade went (for skips: how trading the setup would have gone)
   entry: number // last close before the decision
-  exit: number // last close of the replay
-  movePct: number // how far price moved during the replay, in % (+ is up)
-  stake: number // the position size this card was played with (10% of balance)
-  size: number // dollars actually put into the trade (0 when skipped)
+  movePct: number // how far price moved over the whole replay, in % (+ is up)
+  plan: TradePlan | null // your trade (null when skipped)
+  result: TradeResult | null // how your trade ended
+  missed: { plan: TradePlan; result: TradeResult } | null // skips: trading the setup with default levels
   pnl: number // dollars won or lost (0 when skipped)
-  missedPnl: number // for skips: what trading with the setup would have made
+  risk: StopTargetReview | null // how good your stop and target were
   findings: Finding[] // everything to name and draw, chart patterns first
   headline: string
   chartText: string // "What the chart was saying"
   callText: string // "Your call"
+  riskText: string | null // "Your stop and target"
 }
 
 const money = (n: number) => formatMoney(Math.abs(n))
 const pct = (n: number) => `${Math.abs(n).toFixed(1)}%`
+const rText = (r: number) => `${r >= 0 ? '+' : '−'}${Math.abs(r).toFixed(1)}R`
 
-function outcomeOf(movePctInYourFavor: number): Outcome {
-  if (Math.abs(movePctInYourFavor) < FLAT_MOVE) return 'flat'
-  return movePctInYourFavor > 0 ? 'win' : 'loss'
+function outcomeOf(r: number): Outcome {
+  if (Math.abs(r) < FLAT_R) return 'flat'
+  return r > 0 ? 'win' : 'loss'
 }
 
-export function analyze(card: ChartCard, decision: Decision, size: number): Breakdown {
+// `plan` is your trade (null for a skip); `stake` is the usual position size,
+// used to show what trading a skipped setup would have done.
+export function analyze(card: ChartCard, decision: Decision, plan: TradePlan | null, stake: number): Breakdown {
   const { setup } = card
   const bias = setup.bias
-
-  // --- The numbers ---------------------------------------------------------
   const entry = card.candles[card.candles.length - 1].close
-  const exit = card.future[card.future.length - 1].close
-  const movePct = ((exit - entry) / entry) * 100
-  const yourDirection = decision === 'buy' ? 1 : decision === 'sell' ? -1 : 0
-  const setupDirection = bias === 'bullish' ? 1 : bias === 'bearish' ? -1 : 0
-  const tradeSize = decision === 'skip' ? 0 : size
-  const pnl = Math.round(tradeSize * (movePct / 100) * yourDirection * 100) / 100
-  const missedPnl = Math.round(size * (movePct / 100) * setupDirection * 100) / 100
+  const movePct = ((card.future[card.future.length - 1].close - entry) / entry) * 100
 
-  const outcome =
-    decision === 'skip'
-      ? bias === 'neutral'
-        ? 'flat'
-        : outcomeOf(movePct * setupDirection)
-      : outcomeOf(movePct * yourDirection)
+  // --- What happened --------------------------------------------------------
+  const result = plan ? simulateTrade(plan, card.future) : null
+  let missed: Breakdown['missed'] = null
+  if (!plan && bias !== 'neutral') {
+    const missedPlan = defaultPlan(card.candles, bias === 'bullish' ? 'long' : 'short', stake)
+    missed = { plan: missedPlan, result: simulateTrade(missedPlan, card.future) }
+  }
+  const outcome = result ? outcomeOf(result.r) : missed ? outcomeOf(missed.result.r) : 'flat'
 
   // --- The grade: judged only on what the chart showed, never on the result --
+  const yourSide = decision === 'buy' ? 'bullish' : decision === 'sell' ? 'bearish' : null
   let grade: Grade
-  if (bias === 'neutral') grade = decision === 'skip' ? 'good-pass' : 'no-edge'
-  else if (decision === 'skip') grade = 'missed-setup'
-  else grade = yourDirection === setupDirection ? 'good-read' : 'poor-read'
+  if (bias === 'neutral') grade = yourSide ? 'no-edge' : 'good-pass'
+  else if (!yourSide) grade = 'missed-setup'
+  else grade = yourSide === bias ? 'good-read' : 'poor-read'
 
   // --- The candlestick patterns right at the decision point -----------------
   const candleFindings: Finding[] = findSignalPatterns(card.candles).map((m, k) => ({
@@ -86,7 +83,7 @@ export function analyze(card: ChartCard, decision: Decision, size: number): Brea
     shapes: [{ kind: 'candles', fromIndex: m.start, toIndex: m.end }],
   }))
 
-  // --- The words ----------------------------------------------------------
+  // --- The words ------------------------------------------------------------
   const candleText =
     candleFindings.length > 0
       ? candleFindings.map((f) => `In the yellow box: ${f.name}. ${f.meaning}`).join(' ')
@@ -96,6 +93,14 @@ export function analyze(card: ChartCard, decision: Decision, size: number): Brea
     bearish: 'Put together, the chart favored selling.',
     neutral: 'Put together, there was no edge either way. This was a chart to skip.',
   }[bias]
+  // A strong candle on a chart with no setup: location matters more than the candle.
+  const decoyText =
+    bias === 'neutral' && candleFindings.some((f) => f.bias !== 'neutral')
+      ? "A strong candle in the middle of a range is a decoy: with no floor or ceiling behind it, it doesn't tell you much."
+      : ''
+  const hardText = card.difficultyNotes.length ? `What made this one hard: ${listOf(card.difficultyNotes)}.` : ''
+
+  const risk = plan ? reviewStopAndTarget(card.candles, plan) : null
 
   return {
     decision,
@@ -103,16 +108,17 @@ export function analyze(card: ChartCard, decision: Decision, size: number): Brea
     grade,
     outcome,
     entry,
-    exit,
     movePct,
-    stake: size,
-    size: tradeSize,
-    pnl,
-    missedPnl,
+    plan,
+    result,
+    missed,
+    pnl: result?.pnl ?? 0,
+    risk,
     findings: [...setup.chartFindings, ...candleFindings],
     headline: headlineFor(grade, outcome),
-    chartText: `${setup.story} ${candleText} ${leaning}`,
-    callText: callTextFor(decision, bias, grade, outcome, movePct, tradeSize, pnl, missedPnl),
+    chartText: [setup.story, candleText, decoyText, leaning, hardText].filter(Boolean).join(' '),
+    callText: callTextFor(decision, bias, grade, outcome, movePct, plan, result, missed),
+    riskText: plan && result && risk ? riskTextFor(plan, result, risk, grade, card) : null,
   }
 }
 
@@ -127,20 +133,35 @@ function headlineFor(grade: Grade, outcome: Outcome): string {
   return lines[grade][outcome]
 }
 
+// How a trade ended, in one sentence.
+function exitSentence(result: TradeResult, subject: string): string {
+  const { exit, pnl, r } = result
+  const day = `day ${exit.index + 1}`
+  if (exit.reason === 'stop') return `price hit the stop on ${day}, so ${subject} lost ${money(pnl)} (${rText(r)}).`
+  if (exit.reason === 'target') return `price reached the target on ${day}, so ${subject} made ${money(pnl)} (${rText(r)}).`
+  return `neither the stop nor the target was hit in ${FUTURE_CANDLES} days. Closing at the last candle, ${subject} ${pnl >= 0 ? 'made' : 'lost'} ${money(pnl)} (${rText(r)}).`
+}
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
+// ["a", "b", "c"] -> "a, b, and c"
+function listOf(items: string[]) {
+  if (items.length <= 1) return items.join('')
+  if (items.length === 2) return `${items[0]} and ${items[1]}`
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`
+}
+
 function callTextFor(
   decision: Decision,
   bias: Bias,
   grade: Grade,
   outcome: Outcome,
   movePct: number,
-  size: number,
-  pnl: number,
-  missedPnl: number,
+  plan: TradePlan | null,
+  result: TradeResult | null,
+  missed: Breakdown['missed'],
 ): string {
   const verb = decision === 'buy' ? 'bought' : 'sold'
-  const direction = movePct >= 0 ? 'rose' : 'fell'
-  const days = `Over the next ${FUTURE_CANDLES} days`
-
   const call = {
     'good-read': `You ${verb}, trading with the setup.`,
     'poor-read': `You ${verb}, betting against a ${bias} setup.`,
@@ -149,16 +170,14 @@ function callTextFor(
     'missed-setup': 'You skipped, but this was a clear setup: the pattern and the signal candle lined up.',
   }[grade]
 
-  let result: string
-  if (decision === 'skip') {
-    result =
-      bias === 'neutral'
-        ? `${days} price ${direction} ${pct(movePct)}, a move nobody could have read from this chart.`
-        : `${days} price ${direction} ${pct(movePct)}. ${bias === 'bullish' ? 'Buying' : 'Selling'} with the setup would have ${missedPnl >= 0 ? 'made' : 'lost'} ${money(missedPnl)}.`
-  } else if (outcome === 'flat') {
-    result = `${days} price barely moved (${pct(movePct)}), so your ${money(size)} position about broke even.`
+  let happened: string
+  if (plan && result) {
+    happened = capitalize(exitSentence(result, `your ${money(plan.size)} position`))
+  } else if (missed) {
+    const side = bias === 'bullish' ? 'Buying' : 'Selling'
+    happened = `${side} with the setup, using a standard stop and target: ${exitSentence(missed.result, 'that trade')}`
   } else {
-    result = `${days} price ${direction} ${pct(movePct)}, so your ${money(size)} position ${pnl >= 0 ? 'made' : 'lost'} ${money(pnl)}.`
+    happened = `Over the next ${FUTURE_CANDLES} days price ${movePct >= 0 ? 'rose' : 'fell'} ${pct(movePct)}, a move nobody could have read from this chart.`
   }
 
   const lessons: Record<Grade, Record<Outcome, string>> = {
@@ -185,5 +204,23 @@ function callTextFor(
     },
   }
 
-  return [call, result, lessons[grade][outcome]].filter(Boolean).join(' ')
+  return [call, happened, lessons[grade][outcome]].filter(Boolean).join(' ')
+}
+
+function riskTextFor(plan: TradePlan, result: TradeResult, risk: StopTargetReview, grade: Grade, card: ChartCard): string {
+  const parts = [risk.text]
+
+  // Stopped out, and then price went your way anyway: the classic badly placed stop.
+  const finalClose = card.future[card.future.length - 1].close
+  const wouldHaveWon = (finalClose - plan.entry) * (plan.direction === 'long' ? 1 : -1) > 0
+  if (result.exit.reason === 'stop' && wouldHaveWon && risk.stop !== 'logical') {
+    parts.push("Notice that price went your way after stopping you out. That's the telltale sign of a stop in the wrong place.")
+  }
+
+  // Tie the risk management back to the read.
+  if (grade === 'poor-read' && risk.good) parts.push('The problem was the entry, not the risk management.')
+  else if (grade === 'good-read' && risk.good) parts.push('Good read and solid risk management: that combination wins over time.')
+  else if (grade === 'good-read' && !risk.good) parts.push('The read was right; the stop and target are what to work on.')
+
+  return parts.join(' ')
 }

@@ -709,8 +709,10 @@ const chop: SetupRecipe = {
       invalidation: middle,
     }
   },
-  story: (_bias, p) =>
-    `Price chopped sideways between about ${money(p.low)} and ${money(p.high)} for the whole window, with no trend and no clean pattern. The last candle closed near the middle of that range, where neither side has an edge.`,
+  story: (_bias, p, c) =>
+    c.decoy
+      ? `Price chopped sideways between about ${money(p.low)} and ${money(p.high)} for the whole window, with no trend and no clean pattern. The last candle was a big one, but it started from the middle of the range, not from a floor or a ceiling.`
+      : `Price chopped sideways between about ${money(p.low)} and ${money(p.high)} for the whole window, with no trend and no clean pattern. The last candle closed near the middle of that range, where neither side has an edge.`,
 }
 
 export const SETUPS: SetupRecipe[] = [

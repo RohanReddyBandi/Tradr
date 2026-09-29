@@ -1,6 +1,6 @@
 import type { Review } from '../game/useGame'
 import { GRADE_LABEL, isGoodGrade } from '../lib/analyze'
-import { formatSignedMoney } from '../format'
+import { formatR, formatSignedMoney } from '../format'
 
 const DECISION_LABEL = { buy: 'Bought', sell: 'Sold', skip: 'Skipped' }
 
@@ -44,12 +44,15 @@ export function SessionPanel({ history, sessionPnl }: Props) {
                 Card {card.number} · {card.setup.name}
               </div>
               <div className="mt-0.5 text-xs text-muted">
-                {DECISION_LABEL[b.decision]} ·{' '}
+                <span className="capitalize">{card.difficulty}</span> · {DECISION_LABEL[b.decision]} ·{' '}
                 <span className={isGoodGrade(b.grade) ? 'text-up' : 'text-amber'}>{GRADE_LABEL[b.grade]}</span>
               </div>
             </div>
-            <div className={`shrink-0 font-mono text-sm ${b.pnl > 0 ? 'text-up' : b.pnl < 0 ? 'text-down' : 'text-muted'}`}>
-              {b.decision === 'skip' ? '—' : formatSignedMoney(b.pnl)}
+            <div className="shrink-0 text-right font-mono">
+              <div className={`text-sm ${b.pnl > 0 ? 'text-up' : b.pnl < 0 ? 'text-down' : 'text-muted'}`}>
+                {b.result ? formatSignedMoney(b.pnl) : '—'}
+              </div>
+              {b.result && <div className="mt-0.5 text-xs text-muted">{formatR(b.result.r)}</div>}
             </div>
           </li>
         ))}
