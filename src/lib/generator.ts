@@ -34,8 +34,8 @@ export const DIFFICULTY: Record<Difficulty, DifficultySettings> = {
 }
 
 // Setups that are clear enough for easy cards, and the trickier ones hard cards lean on.
-const EASY_SETUPS = ['flag', 'double', 'support', 'triangle', 'chop']
-const TRICKY_SETUPS = ['falseBreak', 'wedge', 'headShoulders', 'structure']
+const EASY_SETUPS = ['flag', 'double', 'triple', 'support', 'triangle', 'chop']
+const TRICKY_SETUPS = ['falseBreak', 'wedge', 'headShoulders', 'structure', 'symTriangle', 'pennant', 'cup']
 
 // Charts are built around a price of 100, where a typical candle spans 1.2.
 const R = 1.2

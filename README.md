@@ -7,12 +7,15 @@ sense. Fake money only.
 ## Run it
 
 ```bash
+git clone https://github.com/RohanReddyBandi/Tradr.git
+cd Tradr
 npm install
+npm run fetch-charts   # optional: downloads the real charts (see "Real charts")
 npm run dev
 ```
 
 Then open the URL Vite prints (usually http://localhost:5173). Run the tests with
-`npm test`.
+`npm test`. Without `npm run fetch-charts`, every card is a generated chart.
 
 ## Controls
 
@@ -44,10 +47,13 @@ like generated cards; afterwards the Breakdown reveals the stock and the dates.
   (`query1.finance.yahoo.com/v8/finance/chart/<TICKER>`), which needs no API key.
   It's unofficial, so it may change without notice, and the data is for personal,
   educational use. Check Yahoo's terms before publishing the data file anywhere public.
-- **Refreshing:** `npm run fetch-charts` downloads 15 years of daily prices for 45
+- **Getting the data:** `npm run fetch-charts` downloads 15 years of daily prices for 45
   well-known tickers and saves 6 random 90-day windows each to
   `src/data/realCharts.json` (prices are split-adjusted; windows under $5 or with
   broken days are skipped). The app bundles that file, so it never calls Yahoo itself.
+- **Not in the repo:** Yahoo's data isn't ours to redistribute, so the file is in
+  `.gitignore`. Each copy of the app downloads its own; without it, the app simply
+  deals generated charts only.
 - **Grading:** a real chart has no built-in answer, so the pattern scanner reads it and
   its read is the answer key: bullish patterns add to a score, bearish ones subtract,
   and a weak or mixed score counts as "no clear setup".
@@ -60,7 +66,7 @@ reload. Reset on the Stats page starts over at $10,000.
 ## Build status
 
 1. ✅ Swipe card UI
-2. ✅ Synthetic chart generator: 9 setups (plus a no-edge "chop" chart), each in a bullish and a bearish version
+2. ✅ Synthetic chart generator: 13 setups (plus a no-edge "chop" chart), each in a bullish and a bearish version
 3. ✅ Trade setup panel (position size, draggable stop loss and take profit, live risk/reward) and a replay that closes at the stop or target
 4. ✅ Breakdown: replay, markup drawn on the chart, decision graded separately from the outcome
 5. ✅ Pattern detection: 31 candlestick patterns and 28 chart patterns, found from the raw candles alone (this is what will read real charts)

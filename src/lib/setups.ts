@@ -188,7 +188,8 @@ const doubleBottom: SetupRecipe = {
               dot(first, either(bias, '1st low', '1st high'), 'below'),
               dot(second, either(bias, '2nd low', '2nd high'), 'below'),
             ],
-            labelAt: { index: Math.round((firstLowAt + neckAt) / 2), price: first.price - R * 1.8 },
+            // Above the neckline, where there's open space (below the lows is crowded).
+            labelAt: { index: Math.round((firstLowAt + neckAt) / 2), price: neckPoint.price + R * 1.8 },
           },
         ]
       },
@@ -715,6 +716,271 @@ const chop: SetupRecipe = {
       : `Price chopped sideways between about ${money(p.low)} and ${money(p.high)} for the whole window, with no trend and no clean pattern. The last candle closed near the middle of that range, where neither side has an edge.`,
 }
 
+
+const tripleBottom: SetupRecipe = {
+  key: 'triple',
+  names: { bullish: 'Triple bottom', bearish: 'Triple top' },
+  signals: REVERSAL_SIGNALS,
+  build(rng, end, R) {
+    const low = 100
+    const neck = low * (1 + rng.range(0.055, 0.075))
+    const neck2At = end - rng.int(6, 7)
+    const low2At = neck2At - rng.int(6, 8)
+    const neck1At = low2At - rng.int(6, 8)
+    const low1At = neck1At - rng.int(6, 8)
+    const start = low * (1 + rng.range(0.14, 0.18))
+
+    return {
+      waypoints: [
+        { at: 0, price: start },
+        { at: Math.round(low1At * 0.5), price: low + (start - low) * rng.range(0.45, 0.6) },
+        { at: low1At, price: low, touch: 'low' },
+        { at: neck1At, price: neck, touch: 'high' },
+        { at: low2At, price: low * (1 + rng.range(-0.004, 0.004)), touch: 'low' },
+        { at: neck2At, price: neck * (1 + rng.range(-0.01, 0.005)), touch: 'high' },
+        { at: end, price: low * (1 + rng.range(0.008, 0.014)) },
+      ],
+      findings: (cs, bias) => {
+        const last = cs.length - 1
+        const lows = [lowest(cs, low1At - 1, low1At + 1), lowest(cs, low2At - 1, low2At + 1), lowest(cs, end + 1, last)]
+        const word = either(bias, 'low', 'high')
+        return [
+          {
+            id: 'triple',
+            type: 'chart',
+            bias,
+            name: either(bias, 'Triple bottom', 'Triple top'),
+            meaning: either(
+              bias,
+              'Three lows at about the same price. A floor tested three times and still holding.',
+              'Three highs at about the same price. A ceiling tested three times and still holding.',
+            ),
+            shapes: [
+              level(lows[0].price, low1At - 4, last, either(bias, 'Support', 'Resistance')),
+              level(neck, neck1At - 2, last, 'Neckline'),
+              dot(lows[0], `1st ${word}`, 'below'),
+              dot(lows[1], `2nd ${word}`, 'below'),
+              dot(lows[2], `3rd ${word}`, 'below'),
+            ],
+            labelAt: { index: low2At, price: neck + R * 2.4 },
+          },
+        ]
+      },
+      prices: { low, neck },
+      target: neck + (neck - low) * 0.5,
+      invalidation: low * 0.975,
+    }
+  },
+  story: (bias, p, c) =>
+    either(
+      bias,
+      `Price fell to about ${money(p.low)} and has now come back to that same floor three times, bouncing to about ${money(p.neck)} in between. A floor that holds three times shows buyers defending it hard: a triple bottom, with the third low forming on the ${lastCandles(c.signal)}.`,
+      `Price rallied to about ${money(p.low)} and has now come back to that same ceiling three times, dipping to about ${money(p.neck)} in between. A ceiling that holds three times shows sellers defending it hard: a triple top, with the third high forming on the ${lastCandles(c.signal)}.`,
+    ),
+}
+
+const symmetricalTriangle: SetupRecipe = {
+  key: 'symTriangle',
+  names: { bullish: 'Symmetrical triangle breakout', bearish: 'Symmetrical triangle breakdown' },
+  signals: BREAKOUT_SIGNALS,
+  build(rng, end, R) {
+    // A rise into the triangle, then lower highs and higher lows squeezing
+    // toward a point just past the right edge.
+    const firstHigh = end - rng.int(30, 34)
+    const apex = 104
+    const upper = lineThrough({ index: firstHigh, price: 110 + rng.range(0, 1) }, { index: end + 6, price: apex + 0.8 })
+    const lower = lineThrough({ index: firstHigh + 5, price: 97 - rng.range(0, 1) }, { index: end + 6, price: apex - 0.8 })
+
+    const touches: Waypoint[] = []
+    let side: 'high' | 'low' = 'high'
+    for (let i = firstHigh; i <= end - 4; i += rng.int(5, 6)) {
+      touches.push({ at: i, price: side === 'high' ? upper(i) : lower(i), touch: side })
+      side = side === 'high' ? 'low' : 'high'
+    }
+    if (touches[touches.length - 1].touch === 'high') touches.pop()
+
+    return {
+      waypoints: [
+        { at: 0, price: 100 * rng.range(0.88, 0.92) },
+        { at: firstHigh - 8, price: 100 * rng.range(1.0, 1.03) },
+        ...touches,
+        { at: end, price: upper(end) - R * 0.3 },
+      ],
+      findings: (cs, bias) => {
+        const last = cs.length - 1
+        return [
+          {
+            id: 'symTriangle',
+            type: 'chart',
+            bias,
+            name: 'Symmetrical triangle',
+            meaning: either(
+              bias,
+              'Lower highs and higher lows squeezing together after a rise. The squeeze usually breaks the way the move before it went, and this one broke up.',
+              'Lower highs and higher lows squeezing together after a drop. The squeeze usually breaks the way the move before it went, and this one broke down.',
+            ),
+            shapes: [
+              line({ index: firstHigh, price: upper(firstHigh) }, { index: last, price: upper(last) }),
+              line({ index: firstHigh + 5, price: lower(firstHigh + 5) }, { index: last, price: lower(last) }),
+            ],
+            labelAt: { index: firstHigh + 4, price: upper(firstHigh + 4) + R * 1.6 },
+          },
+        ]
+      },
+      prices: {},
+      target: upper(end) + (upper(firstHigh) - lower(firstHigh)) * 0.6,
+      invalidation: lower(end) - R,
+    }
+  },
+  story: (bias, _p, c) =>
+    either(
+      bias,
+      `After a rise, price coiled into a symmetrical triangle: each high lower than the last and each low higher, squeezing toward a point. Squeezes like that usually break the way the move before them went, and the ${lastCandles(c.signal)} broke out above the top line.`,
+      `After a drop, price coiled into a symmetrical triangle: each low higher than the last and each high lower, squeezing toward a point. Squeezes like that usually break the way the move before them went, and the ${lastCandles(c.signal)} broke down through the bottom line.`,
+    ),
+}
+
+const pennant: SetupRecipe = {
+  key: 'pennant',
+  names: { bullish: 'Bullish pennant', bearish: 'Bearish pennant' },
+  signals: BREAKOUT_SIGNALS,
+  build(rng, end) {
+    // At least 11 candles, so the huge pole candles are out of the 10-candle
+    // average the candle detectors compare the breakout against.
+    const pennantLength = rng.int(11, 13)
+    const poleLength = rng.int(5, 7)
+    const poleTop = end - pennantLength
+    const poleBottom = poleTop - poleLength
+    const base = 100
+    const top = base * (1 + rng.range(0.13, 0.18))
+    const apex = top * 0.975
+    // A falling top line and a rising bottom line that meet just past the edge.
+    const upper = lineThrough({ index: poleTop, price: top }, { index: end + 3, price: apex + 0.5 })
+    const lower = lineThrough({ index: poleTop + 3, price: top * 0.955 }, { index: end + 3, price: apex - 0.5 })
+
+    const waypoints: Waypoint[] = [
+      { at: 0, price: base * rng.range(0.93, 0.97) },
+      { at: Math.round(poleBottom * 0.5), price: base * rng.range(0.98, 1.02) },
+      { at: poleBottom, price: base, touch: 'low' },
+      { at: poleTop, price: top, touch: 'high' },
+    ]
+    let side: 'low' | 'high' = 'low'
+    for (let i = poleTop + 3; i < end - 1; i += 3) {
+      waypoints.push({ at: i, price: side === 'low' ? lower(i) : upper(i), touch: side })
+      side = side === 'low' ? 'high' : 'low'
+    }
+    waypoints.push({ at: end, price: upper(end) - 0.2 })
+
+    return {
+      waypoints,
+      findings: (cs, bias) => {
+        const last = cs.length - 1
+        return [
+          {
+            id: 'pennant',
+            type: 'chart',
+            bias,
+            name: either(bias, 'Bullish pennant', 'Bearish pennant'),
+            meaning: either(
+              bias,
+              'A sharp rally, then a small triangle that squeezes tight. It usually breaks out upward, in the direction of the pole.',
+              'A sharp drop, then a small triangle that squeezes tight. It usually breaks down, in the direction of the pole.',
+            ),
+            shapes: [
+              line({ index: poleBottom, price: cs[poleBottom].low }, { index: poleTop, price: cs[poleTop].high }, 'Pole'),
+              line({ index: poleTop, price: upper(poleTop) }, { index: last, price: upper(last) }),
+              line({ index: poleTop + 3, price: lower(poleTop + 3) }, { index: last, price: lower(last) }),
+            ],
+            labelAt: { index: poleTop + 3, price: upper(poleTop + 3) + 2.4 },
+          },
+        ]
+      },
+      prices: { start: base, top },
+      counts: { poleDays: poleLength },
+      target: upper(end) + (top - base) * 0.7,
+      invalidation: lower(end) - 1.5,
+    }
+  },
+  story: (bias, p, c) =>
+    either(
+      bias,
+      `Price ripped ${percent(p.start, p.top)} higher in ${c.poleDays} days (the pole), then paused in a small triangle that squeezed tighter and tighter (the pennant). A tight pause after a burst usually means the move isn't finished. The ${lastCandles(c.signal)} broke out above the pennant.`,
+      `Price dropped ${percent(p.start, p.top)} in ${c.poleDays} days (the pole), then paused in a small triangle that squeezed tighter and tighter (the pennant). A tight pause after a drop usually means the move isn't finished. The ${lastCandles(c.signal)} broke down out of the pennant.`,
+    ),
+}
+
+const cupAndHandle: SetupRecipe = {
+  key: 'cup',
+  names: { bullish: 'Cup and handle', bearish: 'Inverted cup and handle' },
+  // The entry is at the bottom of the handle, so it ends on a buying candle.
+  signals: ['hammer', 'bullishEngulfing', 'morningStar', 'piercingLine', 'tweezerBottom', 'threeInsideUp', 'dragonflyDoji', 'bullishHarami'],
+  build(rng, end, R) {
+    const rightRim = end - rng.int(6, 7)
+    const span = rng.int(26, 32)
+    const leftRim = rightRim - span
+    const rim = 110
+    const depth = rim * rng.range(0.1, 0.13)
+    const bottom = rim - depth
+    const middle = leftRim + span / 2
+    // The cup is a U: a parabola from rim to bottom and back up.
+    const cup = (i: number) => bottom + depth * ((i - middle) / (span / 2)) ** 2
+    const handleLow = rim - depth * rng.range(0.3, 0.36)
+
+    const waypoints: Waypoint[] = [
+      { at: 0, price: rim * rng.range(0.88, 0.91) },
+      { at: leftRim - 8, price: rim * rng.range(0.95, 0.97) },
+      { at: leftRim, price: rim, touch: 'high' },
+    ]
+    for (let k = 1; k <= 5; k++) {
+      const at = Math.round(leftRim + (span * k) / 6)
+      waypoints.push({ at, price: cup(at) })
+    }
+    waypoints.push({ at: rightRim, price: rim * (1 + rng.range(-0.004, 0.004)), touch: 'high' })
+    waypoints.push({ at: end, price: handleLow })
+
+    return {
+      waypoints,
+      findings: (cs, bias) => {
+        const last = cs.length - 1
+        const handle = lowest(cs, rightRim + 1, last)
+        const curve: ChartPoint[] = []
+        for (let k = 0; k <= 16; k++) {
+          const i = leftRim + (span * k) / 16
+          curve.push({ index: i, price: cup(i) })
+        }
+        return [
+          {
+            id: 'cup',
+            type: 'chart',
+            bias,
+            name: either(bias, 'Cup and handle', 'Inverted cup and handle'),
+            meaning: either(
+              bias,
+              'A rounded U-shaped bottom back up to the old high (the cup), then a small dip (the handle). Buyers are soaking up the last sellers before a push higher.',
+              'A rounded upside-down U back down to the old low (the cup), then a small bounce (the handle). Sellers are soaking up the last buyers before a push lower.',
+            ),
+            shapes: [
+              { kind: 'curve', points: curve },
+              level(rim, leftRim, last, 'Rim'),
+              line({ index: rightRim, price: cs[rightRim].high }, handle, 'Handle'),
+            ],
+            labelAt: { index: Math.round(middle), price: rim + R * 1.8 },
+          },
+        ]
+      },
+      prices: { rim, bottom },
+      target: rim + depth * 0.8,
+      invalidation: handleLow - depth * 0.25,
+    }
+  },
+  story: (bias, p, c) =>
+    either(
+      bias,
+      `Price slid from about ${money(p.rim)} into a smooth, rounded bottom near ${money(p.bottom)}, then climbed all the way back: the cup. Then it dipped a little (the handle), and the ${lastCandles(c.signal)} show buyers stepping back in. A shallow handle after a round cup is buyers soaking up the last sellers.`,
+      `Price climbed from about ${money(p.rim)} into a smooth, rounded top near ${money(p.bottom)}, then fell all the way back: an upside-down cup. Then it bounced a little (the handle), and the ${lastCandles(c.signal)} show sellers stepping back in. A shallow handle after a round top is sellers soaking up the last buyers.`,
+    ),
+}
+
 export const SETUPS: SetupRecipe[] = [
   flag,
   doubleBottom,
@@ -725,6 +991,10 @@ export const SETUPS: SetupRecipe[] = [
   wedge,
   falseBreak,
   structure,
+  tripleBottom,
+  symmetricalTriangle,
+  pennant,
+  cupAndHandle,
   chop,
 ]
 
@@ -740,4 +1010,8 @@ export const SCANNER_MATCHES: Record<string, string[]> = {
   wedge: ['fallingWedge', 'risingWedge', 'breakout', 'breakdown'],
   falseBreak: ['falseBreakdown', 'falseBreakout'],
   structure: ['higherHighsHigherLows', 'lowerHighsLowerLows', 'ascendingChannel', 'descendingChannel'],
+  triple: ['tripleBottom', 'tripleTop', 'doubleBottom', 'doubleTop', 'supportLevel', 'resistanceLevel'],
+  symTriangle: ['symmetricalTriangle', 'breakout', 'breakdown'],
+  pennant: ['bullishPennant', 'bearishPennant', 'bullFlag', 'bearFlag'],
+  cup: ['cupAndHandle', 'invertedCupAndHandle'],
 }
