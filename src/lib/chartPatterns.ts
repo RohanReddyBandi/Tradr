@@ -1,4 +1,4 @@
-import type { Bias, Candle, ChartPoint, Shape } from '../types'
+import type { Bias, Candle, ChartPoint, Finding, Shape } from '../types'
 import { averageTrueRange } from './trade'
 import { findPivots, type Pivot } from './pivots'
 
@@ -465,9 +465,12 @@ function trendLines({ candles, pivots, atr, last, close }: Chart): ChartPatternM
     const typical = CHART_PATTERNS[key].bias
     const bias: Bias = broke === 'up' ? 'bullish' : broke === 'down' ? 'bearish' : typical
 
+    // Each line starts at its own first touch, so it doesn't dangle off into empty space.
+    const upperFrom = highs[0].index
+    const lowerFrom = lows[0].index
     const shapes: Shape[] = [
-      { kind: 'line', from: { index: start, price: upper.at(start) }, to: { index: last, price: upper.at(last) } },
-      { kind: 'line', from: { index: start, price: lower.at(start) }, to: { index: last, price: lower.at(last) } },
+      { kind: 'line', from: { index: upperFrom, price: upper.at(upperFrom) }, to: { index: last, price: upper.at(last) } },
+      { kind: 'line', from: { index: lowerFrom, price: lower.at(lowerFrom) }, to: { index: last, price: lower.at(last) } },
     ]
     const matches = [found(key, shapes, start, last, { index: start + 3, price: upper.at(start + 3) + 1.5 * atr }, bias)]
     if (broke) {
@@ -590,4 +593,17 @@ export function pickChartPatterns(matches: ChartPatternMatch[], max = 3): ChartP
     if (picked.length === max) break
   }
   return picked
+}
+
+// A scanner match in the shape the Breakdown draws and lists.
+export function toFinding(match: ChartPatternMatch): Finding {
+  return {
+    id: `scan-${match.pattern.key}`,
+    name: match.pattern.name,
+    type: 'chart',
+    bias: match.bias,
+    meaning: match.pattern.meaning,
+    shapes: match.shapes,
+    labelAt: match.labelAt,
+  }
 }

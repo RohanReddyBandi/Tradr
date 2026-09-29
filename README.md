@@ -35,6 +35,23 @@ Every card shows its difficulty before you decide:
 
 The Breakdown of a hard card explains what made it hard.
 
+## Real charts
+
+About a third of the cards are real price history. Before the trade they look exactly
+like generated cards; afterwards the Breakdown reveals the stock and the dates.
+
+- **Source:** Yahoo Finance's public chart endpoint
+  (`query1.finance.yahoo.com/v8/finance/chart/<TICKER>`), which needs no API key.
+  It's unofficial, so it may change without notice, and the data is for personal,
+  educational use. Check Yahoo's terms before publishing the data file anywhere public.
+- **Refreshing:** `npm run fetch-charts` downloads 15 years of daily prices for 45
+  well-known tickers and saves 6 random 90-day windows each to
+  `src/data/realCharts.json` (prices are split-adjusted; windows under $5 or with
+  broken days are skipped). The app bundles that file, so it never calls Yahoo itself.
+- **Grading:** a real chart has no built-in answer, so the pattern scanner reads it and
+  its read is the answer key: bullish patterns add to a score, bearish ones subtract,
+  and a weak or mixed score counts as "no clear setup".
+
 ## Saving
 
 Your balance and history are saved in this browser (localStorage), so they survive a
@@ -48,7 +65,7 @@ reload. Reset on the Stats page starts over at $10,000.
 4. ✅ Breakdown: replay, markup drawn on the chart, decision graded separately from the outcome
 5. ✅ Pattern detection: 31 candlestick patterns and 28 chart patterns, found from the raw candles alone (this is what will read real charts)
 6. ✅ Stats (equity curve, win rate, average R, decision accuracy, skip stats, accuracy by difficulty and by pattern), a Learn tab with every pattern, and saving to localStorage
-7. ⬜ Real historical data
+7. ✅ Real historical data: 270 real 90-day windows from 45 stocks and funds, mixed in with generated charts
 
 ## How a card works
 
@@ -91,6 +108,8 @@ reload. Reset on the Stats page starts over at $10,000.
 | `src/lib/riskReview.ts` | Grades your stop and target placement |
 | `src/lib/analyze.ts` | Grades a decision and writes the Breakdown text |
 | `src/lib/stats.ts` | Works out the Stats page numbers from your history |
+| `src/lib/realCards.ts` | Turns saved real price windows into cards |
+| `scripts/fetch-real-charts.mjs` | Downloads the real price history (`npm run fetch-charts`) |
 | `src/lib/library.ts`, `src/lib/examples.ts` | The Learn tab's pattern list and example charts |
 | `src/pages/StatsPage.tsx`, `src/components/EquityChart.tsx` | Stats page and the equity curve |
 | `src/pages/LearnPage.tsx`, `src/components/MiniChart.tsx` | Learn tab and its small example charts |

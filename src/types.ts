@@ -50,11 +50,21 @@ export interface Setup {
 // How hard a chart is to read. Shown on the card before you decide.
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
+// Where a real chart came from. Hidden until after the trade.
+export interface RealInfo {
+  ticker: string
+  name: string
+  from: string // first visible day (YYYY-MM-DD)
+  decision: string // the day you decided on
+  to: string // last replayed day
+}
+
 // Everything needed to show one swipe card and grade it afterwards.
 export interface ChartCard {
   id: string
   number: number // shown as "Card 14" in the card header
-  source: 'generated'
+  source: 'generated' | 'real'
+  real?: RealInfo // only for real charts
   difficulty: Difficulty
   difficultyNotes: string[] // for hard cards: what makes them hard
   candles: Candle[] // what you see before deciding

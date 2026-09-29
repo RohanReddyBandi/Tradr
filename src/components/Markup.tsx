@@ -43,7 +43,8 @@ export function Markup({ project, candles, entryIndex, shownCount, exitColor, fi
 
   return (
     <>
-      <svg width={width} height={height} className="pointer-events-none absolute top-0 left-0 overflow-visible" aria-hidden="true">
+      {/* Clipped to the chart: long trendlines must not spill onto the rest of the page. */}
+      <svg width={width} height={height} className="pointer-events-none absolute top-0 left-0 overflow-hidden" aria-hidden="true">
         {/* The replay zone: slightly lighter, split off by a dotted line. */}
         <rect x={divider} y={0} width={Math.max(0, width - divider)} height={height} fill="#ffffff" opacity={0.035} />
         <line x1={divider} y1={0} x2={divider} y2={height} stroke="#5c5c5c" strokeDasharray="2 4" />

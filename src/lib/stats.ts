@@ -8,6 +8,7 @@ export interface TradeRecord {
   id: string
   cardNumber: number
   setupName: string
+  ticker: string | null // real charts only
   difficulty: Difficulty
   decision: Decision
   grade: Grade

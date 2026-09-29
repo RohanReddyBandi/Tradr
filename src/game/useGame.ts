@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ChartCard, Decision } from '../types'
 import { generateCard } from '../lib/generator'
+import { drawRealCard, loadRealWindows, loadedRealWindows } from '../lib/realCards'
 import { analyze, type Breakdown } from '../lib/analyze'
 import { DEFAULT_POSITION_SHARE, type Direction, type TradePlan } from '../lib/trade'
 import type { TradeRecord } from '../lib/stats'
@@ -53,8 +54,16 @@ function save(saved: Saved) {
   }
 }
 
+// About a third of the cards are real charts, once those have loaded.
+const REAL_SHARE = 0.35
+
+function nextCard(number: number): ChartCard {
+  const real = loadedRealWindows()
+  return real && Math.random() < REAL_SHARE ? drawRealCard(real, number) : generateCard(number)
+}
+
 // A fresh deck, numbered on from the last card played.
-const freshDeck = (lastNumber: number) => [1, 2, 3].map((n) => generateCard(lastNumber + n))
+const freshDeck = (lastNumber: number) => [1, 2, 3].map((n) => nextCard(lastNumber + n))
 
 // All of the game's state lives here, so switching tabs doesn't lose it.
 export function useGame() {
@@ -68,13 +77,20 @@ export function useGame() {
   // Save whenever the balance or history changes.
   useEffect(() => save({ version: 1, balance, history }), [balance, history])
 
+  // Start loading the real charts in the background; later cards can use them.
+  useEffect(() => {
+    loadRealWindows().catch(() => {
+      // If they can't load, every card is simply a generated one.
+    })
+  }, [])
+
   // The usual position size, used as the default and to show what skips missed.
   const stake = Math.round(balance * DEFAULT_POSITION_SHARE * 100) / 100
 
   // Grade the card, open its Breakdown, and move the deck along.
   function finish(card: ChartCard, decision: Decision, plan: TradePlan | null) {
     setReview({ card, breakdown: analyze(card, decision, plan, stake), settled: false })
-    setDeck((cards) => [...cards.slice(1), generateCard(cards[cards.length - 1].number + 1)])
+    setDeck((cards) => [...cards.slice(1), nextCard(cards[cards.length - 1].number + 1)])
   }
 
   // You swiped. A skip goes straight to the Breakdown; buy and sell open the trade setup.
@@ -104,7 +120,8 @@ export function useGame() {
     const record: TradeRecord = {
       id: card.id,
       cardNumber: card.number,
-      setupName: card.setup.name,
+      setupName: card.real ? `${card.real.ticker} · ${card.setup.name}` : card.setup.name,
+      ticker: card.real?.ticker ?? null,
       difficulty: card.difficulty,
       decision: b.decision,
       grade: b.grade,

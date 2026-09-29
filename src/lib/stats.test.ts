@@ -8,6 +8,7 @@ function record(fields: Partial<TradeRecord>): TradeRecord {
     id: `r${n}`,
     cardNumber: n,
     setupName: 'Bull flag',
+    ticker: null,
     difficulty: 'medium',
     decision: 'buy',
     grade: 'good-read',

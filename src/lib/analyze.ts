@@ -1,6 +1,6 @@
 import type { Bias, ChartCard, Decision, Finding } from '../types'
 import { findSignalPatterns } from './candlePatterns'
-import { findChartPatterns, pickChartPatterns } from './chartPatterns'
+import { findChartPatterns, pickChartPatterns, toFinding } from './chartPatterns'
 import { SCANNER_MATCHES } from './setups'
 import { FUTURE_CANDLES } from './generator'
 import { defaultPlan, simulateTrade, type TradePlan, type TradeResult } from './trade'
@@ -107,17 +107,9 @@ export function analyze(card: ChartCard, decision: Decision, plan: TradePlan | n
   const risk = plan ? reviewStopAndTarget(card.candles, plan) : null
 
   // --- The scanner: the same candles, read with no answer key ----------------
-  // This is how real charts will be read. On generated charts we can check it.
-  const scannedMatches = pickChartPatterns(findChartPatterns(card.candles))
-  const scanned: Finding[] = scannedMatches.map((m) => ({
-    id: `scan-${m.pattern.key}`,
-    name: m.pattern.name,
-    type: 'chart',
-    bias: m.bias,
-    meaning: m.pattern.meaning,
-    shapes: m.shapes,
-    labelAt: m.labelAt,
-  }))
+  // On generated charts we can check it against the built-in pattern. Real
+  // charts already come from the scanner, so there's nothing to compare.
+  const scanned = card.source === 'real' ? [] : pickChartPatterns(findChartPatterns(card.candles)).map(toFinding)
   const expected = SCANNER_MATCHES[setup.key]
   const scannerAgrees = expected
     ? findChartPatterns(card.candles).some((m) => expected.includes(m.pattern.key) && (m.bias === bias || m.bias === 'neutral'))

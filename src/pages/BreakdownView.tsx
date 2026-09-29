@@ -117,6 +117,13 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
                 <span className="text-neutral-500">Playing out the next {FUTURE_CANDLES} days…</span>
               )}
             </h1>
+            {/* Real charts reveal what they were once the replay is over. */}
+            {done && card.real && (
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-2 text-[15px] text-soft">
+                It was <span className="font-semibold text-white">{card.real.name}</span>{' '}
+                <span className="font-mono text-sm">({card.real.ticker})</span>, {dateRange(card.real.from, card.real.to)}.
+              </motion.p>
+            )}
           </div>
 
           <ResultCard b={b} movePct={movePct} live={live} liveMissed={liveMissed} />
@@ -174,7 +181,11 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
 
               <Reveal>
                 <SectionTitle>Patterns spotted</SectionTitle>
-                <div className="mt-3 flex flex-wrap gap-2">{b.findings.map((f) => chip(f))}</div>
+                {b.findings.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">{b.findings.map((f) => chip(f))}</div>
+                ) : (
+                  <p className="mt-2 text-sm text-soft">Nothing clear on this chart.</p>
+                )}
                 <p className="mt-3 min-h-[3lh] text-sm leading-relaxed text-soft">
                   {activeFinding ? (
                     <>
@@ -204,10 +215,20 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
                 </Reveal>
               )}
 
+              {card.real ? (
+                <Reveal>
+                  <SectionTitle>Pattern scanner</SectionTitle>
+                  <p className="mt-2 text-sm leading-relaxed text-soft">
+                    Real charts have no built-in answer, so the patterns above come from the scanner and its read is what
+                    your call was graded against. Treat it as a well-informed second opinion: real prices rarely draw
+                    textbook shapes.
+                  </p>
+                </Reveal>
+              ) : (
               <Reveal>
                 <SectionTitle>Pattern scanner</SectionTitle>
                 <p className="mt-2 text-sm leading-relaxed text-muted">
-                  Reading only the candles, the way it will read real charts, the scanner found:
+                  Reading only the candles, the way it reads real charts, the scanner found:
                 </p>
                 {b.scanned.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-2">{b.scanned.map((f) => chip(f, true))}</div>
@@ -228,11 +249,14 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
                   </p>
                 )}
               </Reveal>
+              )}
 
               <Reveal>
                 <div className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-neutral-700 px-4 py-3.5">
-                  <span className="text-sm text-muted">Generated chart</span>
-                  <span className="text-right font-mono text-sm text-soft">{card.setup.name}</span>
+                  <span className="text-sm text-muted">{card.real ? 'Real chart' : 'Generated chart'}</span>
+                  <span className="text-right font-mono text-sm text-soft">
+                    {card.real ? `${card.real.ticker} · ${dateRange(card.real.from, card.real.to)}` : card.setup.name}
+                  </span>
                 </div>
               </Reveal>
 
@@ -261,6 +285,16 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
       </div>
     </div>
   )
+}
+
+// "Mar 4 – Jul 12, 2019", or with both years if it crosses New Year.
+function dateRange(from: string, to: string) {
+  const f = new Date(`${from}T00:00:00Z`)
+  const t = new Date(`${to}T00:00:00Z`)
+  const opts = { month: 'short', day: 'numeric', timeZone: 'UTC' } as const
+  const sameYear = f.getUTCFullYear() === t.getUTCFullYear()
+  const start = f.toLocaleDateString('en-US', sameYear ? opts : { ...opts, year: 'numeric' })
+  return `${start} – ${t.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`
 }
 
 interface ChipProps {
