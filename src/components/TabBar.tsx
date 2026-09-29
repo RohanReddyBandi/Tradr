@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react'
-import { LearnIcon, LogoIcon, StatsIcon, SwipeIcon } from './icons'
+import { LearnIcon, LogoIcon, PracticeIcon, StatsIcon, SwipeIcon } from './icons'
 import { formatMoney } from '../format'
 
-export type Tab = 'swipe' | 'learn' | 'stats'
+export type Tab = 'swipe' | 'learn' | 'practice' | 'stats'
 
 const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
   { id: 'swipe', label: 'Swipe', icon: <SwipeIcon /> },
   { id: 'learn', label: 'Learn', icon: <LearnIcon /> },
+  { id: 'practice', label: 'Practice', icon: <PracticeIcon /> },
   { id: 'stats', label: 'Stats', icon: <StatsIcon /> },
 ]
 

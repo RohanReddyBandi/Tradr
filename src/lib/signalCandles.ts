@@ -114,7 +114,47 @@ const risingThreeMethods: Recipe = (R) => {
   return [big, pause1, pause2, pause3, finish]
 }
 
+const morningDojiStar: Recipe = (R) => {
+  const red = bar(0, -1.1 * R, 0.1 * R, 0.1 * R)
+  const dojiOpen = red.close - 0.15 * R
+  const doji = bar(dojiOpen, dojiOpen + 0.005 * R, 0.15 * R, 0.15 * R)
+  return [red, doji, bar(doji.close + 0.05 * R, red.close + 0.8 * R, 0.08 * R, 0.08 * R)]
+}
+
+const bullishHaramiCross: Recipe = (R) => {
+  const red = bar(0.05 * R, -1.15 * R, 0.1 * R, 0.1 * R)
+  const dojiOpen = red.close + 0.45 * R
+  return [red, bar(dojiOpen, dojiOpen + 0.01 * R, 0.2 * R, 0.2 * R)]
+}
+
+const bullishKicker: Recipe = (R) => {
+  const red = bar(0, -0.9 * R, 0.05 * R, 0.05 * R)
+  const open = red.open + 0.25 * R // gaps up above where the red candle opened
+  return [red, bar(open, open + 1.2 * R, 0.08 * R, 0.03 * R)]
+}
+
+const bullishCounterattack: Recipe = (R) => {
+  const red = bar(0.05 * R, -1.1 * R, 0.1 * R, 0.1 * R)
+  const open = red.low - 0.65 * R // opens far below...
+  return [red, bar(open, red.close + 0.005 * R, 0.08 * R, 0.1 * R)] // ...and closes right where the red one did
+}
+
+const risingWindow: Recipe = (R, rng) => {
+  const first = bar(0, rng.range(0.5, 0.7) * R, 0.1 * R, 0.1 * R)
+  const open = first.high + rng.range(0.35, 0.5) * R // the gap
+  return [first, bar(open, open + rng.range(0.45, 0.8) * R, 0.1 * R, 0.05 * R)]
+}
+
+const bullishBeltHold: Recipe = (R) => {
+  const open = -0.65 * R // gaps down, then climbs all day from the open
+  return [bar(open, open + 1.0 * R, 0.25 * R, 0)]
+}
+
 // Indecision candles for charts with no setup.
+const insideBar: Recipe = (R) => {
+  const big = bar(0, 0.9 * R, 0.2 * R, 0.2 * R)
+  return [big, bar(0.6 * R, 0.4 * R, 0.1 * R, 0.1 * R)]
+}
 const doji: Recipe = (R, rng) => [bar(0, (rng.chance(0.5) ? 0.02 : -0.02) * R, 0.4 * R, 0.4 * R)]
 const spinningTop: Recipe = (R, rng) => [bar(0, (rng.chance(0.5) ? 0.2 : -0.2) * R, 0.3 * R, 0.3 * R)]
 const longLeggedDoji: Recipe = (R) => [bar(0, 0.02 * R, 0.7 * R, 0.7 * R)]
@@ -134,9 +174,16 @@ export const SIGNAL_RECIPES = {
   bullishMarubozu,
   threeWhiteSoldiers,
   risingThreeMethods,
+  morningDojiStar,
+  bullishHaramiCross,
+  bullishKicker,
+  bullishCounterattack,
+  risingWindow,
+  bullishBeltHold,
   doji,
   spinningTop,
   longLeggedDoji,
+  insideBar,
 }
 
 export type SignalKey = keyof typeof SIGNAL_RECIPES
@@ -153,10 +200,12 @@ export const REVERSAL_SIGNALS: SignalKey[] = [
   'threeInsideUp',
   'morningStar',
   'abandonedBaby',
+  'morningDojiStar',
+  'bullishHaramiCross',
 ]
 
 // Candles that push price through a line.
-export const BREAKOUT_SIGNALS: SignalKey[] = ['bullishMarubozu', 'threeWhiteSoldiers']
+export const BREAKOUT_SIGNALS: SignalKey[] = ['bullishMarubozu', 'threeWhiteSoldiers', 'risingWindow', 'bullishKicker']
 
 // Big, obvious signals, used on easy cards...
 export const STRONG_SIGNALS: SignalKey[] = [
@@ -180,6 +229,7 @@ export const SUBTLE_SIGNALS: SignalKey[] = [
   'dragonflyDoji',
   'threeInsideUp',
   'abandonedBaby',
+  'bullishHaramiCross',
   'spinningTop',
 ]
 

@@ -66,7 +66,7 @@ describe('generateCard', () => {
     expect(count('hard')).toBeGreaterThan(0.25)
     // Easy cards stick to the clearest setups; hard cards say why they're hard.
     const easySetups = new Set(cards.filter((c) => c.difficulty === 'easy').map((c) => c.setup.key))
-    expect([...easySetups].sort()).toEqual(['chop', 'double', 'flag', 'support', 'triangle', 'triple'])
+    expect([...easySetups].sort()).toEqual(['chop', 'double', 'flag', 'rectangle', 'support', 'triangle', 'triple'])
     expect(cards.filter((c) => c.difficulty === 'hard').every((c) => c.difficultyNotes.length >= 2)).toBe(true)
   })
 
@@ -89,7 +89,7 @@ describe('generateCard', () => {
 
   it('uses every setup and both directions', () => {
     const names = new Set(cards.map((c) => c.setup.name))
-    expect(names.size).toBeGreaterThanOrEqual(27)
+    expect(names.size).toBeGreaterThanOrEqual(37)
   })
 })
 

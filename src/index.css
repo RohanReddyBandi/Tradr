@@ -45,3 +45,9 @@ body {
   outline: 2px solid #5c5c5c;
   outline-offset: 2px;
 }
+
+/* Clicking a focusable chart (the Practice drills) shouldn't draw the
+   browser's own ring; keyboard focus still gets the one above. */
+:focus:not(:focus-visible) {
+  outline: none;
+}

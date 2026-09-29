@@ -14,24 +14,24 @@ export interface PatternExample {
   shapes: Shape[] // what to draw on top
 }
 
-const R = 1.2 // a typical candle's size at a price of 100
+export const R = 1.2 // a typical candle's size at a price of 100
 
 // Flip a chart upside down around 100, turning a bullish example into its bearish twin.
-const flip = (cs: Candle[]): Candle[] =>
+export const flip = (cs: Candle[]): Candle[] =>
   cs.map((c) => ({ time: c.time, open: 200 - c.open, close: 200 - c.close, high: 200 - c.low, low: 200 - c.high }))
 
 // ---------------------------------------------------------------------------
 // Candlestick examples: a short lead-in, then the pattern.
 // ---------------------------------------------------------------------------
 
-type LeadIn = 'down' | 'up' | 'flat'
-interface CandleRecipe {
+export type LeadIn = 'down' | 'up' | 'flat'
+export interface CandleRecipe {
   recipe: SignalKey
   flipped?: boolean // build the bullish version, then turn it upside down
   lead?: LeadIn // the move into the pattern (down by default)
 }
 
-const CANDLE_RECIPES: Record<string, CandleRecipe> = {
+export const CANDLE_RECIPES: Record<string, CandleRecipe> = {
   hammer: { recipe: 'hammer' },
   shootingStar: { recipe: 'hammer', flipped: true },
   invertedHammer: { recipe: 'invertedHammer' },
@@ -63,9 +63,22 @@ const CANDLE_RECIPES: Record<string, CandleRecipe> = {
   threeOutsideDown: { recipe: 'threeOutsideUp', flipped: true },
   risingThreeMethods: { recipe: 'risingThreeMethods', lead: 'up' },
   fallingThreeMethods: { recipe: 'risingThreeMethods', lead: 'up', flipped: true },
+  morningDojiStar: { recipe: 'morningDojiStar' },
+  eveningDojiStar: { recipe: 'morningDojiStar', flipped: true },
+  bullishHaramiCross: { recipe: 'bullishHaramiCross' },
+  bearishHaramiCross: { recipe: 'bullishHaramiCross', flipped: true },
+  bullishKicker: { recipe: 'bullishKicker', lead: 'flat' },
+  bearishKicker: { recipe: 'bullishKicker', lead: 'flat', flipped: true },
+  bullishCounterattack: { recipe: 'bullishCounterattack' },
+  bearishCounterattack: { recipe: 'bullishCounterattack', flipped: true },
+  risingWindow: { recipe: 'risingWindow', lead: 'up' },
+  fallingWindow: { recipe: 'risingWindow', lead: 'up', flipped: true },
+  insideBar: { recipe: 'insideBar', lead: 'flat' },
+  bullishBeltHold: { recipe: 'bullishBeltHold' },
+  bearishBeltHold: { recipe: 'bullishBeltHold', flipped: true },
 }
 
-function leadIn(direction: LeadIn, count: number): Candle[] {
+export function leadIn(direction: LeadIn, count: number): Candle[] {
   const candles: Candle[] = []
   let close = 100
   for (let i = 0; i < count; i++) {
@@ -97,15 +110,15 @@ export function candleExample(key: string): PatternExample | null {
 // Each bullish (or neutral) shape also serves its upside-down twin.
 // ---------------------------------------------------------------------------
 
-type Points = [number, number][]
+export type Points = [number, number][]
 
-const CHART_SHAPES: Record<string, Points> = {
+export const CHART_SHAPES: Record<string, Points> = {
   supportLevel: [[0, 110], [8, 100], [16, 110], [24, 100.3], [32, 110], [40, 101.5], [42, 101]],
   breakout: [[0, 100], [8, 110], [16, 100], [24, 110.2], [32, 101], [40, 109.8], [44, 106], [47, 109], [48, 113]],
   falseBreakdown: [[0, 110], [8, 100], [16, 110], [24, 100.2], [32, 109], [40, 101], [44, 98], [45, 97.5], [46, 101.5]],
-  higherHighsHigherLows: [[0, 100], [6, 108], [10, 104], [16, 112], [20, 108], [26, 116], [30, 112], [34, 115]],
-  ascendingChannel: [[0, 100], [10, 112], [16, 108], [22, 118], [28, 114], [34, 124], [38, 120]],
-  horizontalChannel: [[0, 100], [8, 110], [16, 100.2], [24, 110.3], [32, 100.1], [40, 109.8], [44, 104]],
+  higherHighsHigherLows: [[0, 100], [6, 108], [10, 104], [16, 112], [20, 108], [26, 116], [30, 112], [35, 119]],
+  ascendingChannel: [[0, 100], [10, 112], [16, 106], [22, 118], [28, 112], [34, 124], [38, 118]],
+  horizontalChannel: [[0, 106], [8, 110], [16, 100.2], [24, 110.3], [32, 100.1], [40, 109.8], [44, 104]],
   doubleBottom: [[0, 130], [15, 100], [23, 115], [31, 100.5], [36, 108]],
   tripleBottom: [[0, 140], [12, 100], [18, 112], [24, 100.3], [30, 112], [36, 100.2], [40, 107]],
   inverseHeadAndShoulders: [[0, 125], [10, 100], [16, 110], [22, 92], [28, 110.5], [34, 100.5], [40, 112]],
@@ -113,12 +126,35 @@ const CHART_SHAPES: Record<string, Points> = {
   symmetricalTriangle: [[0, 105], [10, 120], [16, 90], [22, 114], [28, 97], [34, 109], [38, 104]],
   risingWedge: [[0, 96], [10, 110], [16, 104], [22, 116], [28, 112], [34, 119], [40, 113.5]],
   bullFlag: [[0, 98], [20, 100], [28, 125], [31, 120], [34, 123], [37, 118], [40, 121], [43, 117], [44, 122]],
-  bullishPennant: [[0, 98], [20, 100], [28, 125], [31, 116], [34, 123], [37, 118], [40, 122], [42, 119.5], [43, 121], [44, 120.5]],
+  bullishPennant: [[0, 98], [18, 100], [26, 126], [29, 114], [32, 124], [35, 116.5], [38, 122], [41, 118], [44, 120.5], [46, 119.5], [47, 120.2]],
   cupAndHandle: [[0, 120], [4, 121], [10, 110], [16, 103], [22, 101], [28, 103], [34, 110], [40, 120.5], [44, 116], [46, 118]],
+  roundingBottom: [[0, 124], [6, 114], [12, 106], [18, 101.5], [24, 100], [30, 101.5], [36, 106], [42, 113], [46, 117]],
+  vBottom: [[0, 118], [16, 122], [24, 100], [31, 117], [33, 116]],
+  diamondBottom: [[0, 128], [8, 100], [14, 112], [21, 97], [28, 119], [35, 92], [42, 110], [48, 100], [53, 108], [56, 104]],
+  broadeningFormation: [[0, 105], [6, 110], [12, 100], [18, 113], [24, 97], [30, 116], [36, 94], [40, 104]],
+  descendingBroadeningWedge: [[0, 122], [6, 120], [12, 112], [18, 118], [24, 104], [30, 116], [36, 96], [40, 104]],
+  bullishRectangle: [[0, 90], [14, 108], [20, 101], [26, 108.2], [32, 101.2], [38, 108], [44, 104]],
+  risingTrendline: [[0, 98], [6, 108], [10, 103], [17, 114], [22, 107], [28, 117], [34, 111], [40, 121], [43, 117]],
+  bullishChangeOfCharacter: [[0, 118], [5, 124], [11, 110], [17, 118], [23, 104], [30, 121]],
+  volatilitySqueeze: [[0, 100], [6, 112], [12, 100], [18, 112], [24, 100], [30, 112], [36, 104], [38, 106], [46, 106]],
+  // These four also need gaps: see GAPS below.
+  islandBottom: [[0, 120], [20, 104], [26, 103], [33, 106]],
+  exhaustionGapDown: [[0, 130], [24, 104], [26, 103], [32, 110]],
+  breakawayGapUp: [[0, 95], [8, 100], [12, 103], [16, 100], [20, 103], [24, 100.5], [28, 102.5], [30, 103.5], [34, 106]],
+  runawayGapUp: [[0, 90], [30, 120], [36, 127]],
+}
+
+// Gaps to open up in a shape: [candle index, jump]. Every candle from that
+// index on moves up (or down) by the jump, leaving an empty space before it.
+export const GAPS: Record<string, [number, number][]> = {
+  islandBottom: [[21, -4], [26, 5]],
+  exhaustionGapDown: [[25, -4]],
+  breakawayGapUp: [[31, 3]],
+  runawayGapUp: [[31, 3]],
 }
 
 // Bearish (or mirrored) patterns: which shape to flip.
-const MIRRORS: Record<string, string> = {
+export const MIRRORS: Record<string, string> = {
   resistanceLevel: 'supportLevel',
   breakdown: 'breakout',
   falseBreakout: 'falseBreakdown',
@@ -132,29 +168,50 @@ const MIRRORS: Record<string, string> = {
   bearFlag: 'bullFlag',
   bearishPennant: 'bullishPennant',
   invertedCupAndHandle: 'cupAndHandle',
+  roundingTop: 'roundingBottom',
+  vTop: 'vBottom',
+  diamondTop: 'diamondBottom',
+  ascendingBroadeningWedge: 'descendingBroadeningWedge',
+  bearishRectangle: 'bullishRectangle',
+  fallingTrendline: 'risingTrendline',
+  bearishChangeOfCharacter: 'bullishChangeOfCharacter',
+  islandTop: 'islandBottom',
+  exhaustionGapUp: 'exhaustionGapDown',
+  breakawayGapDown: 'breakawayGapUp',
+  runawayGapDown: 'runawayGapUp',
 }
 
 // Candles through the points, with a little randomness so they look real.
-function candlesThrough(points: Points, seed: number): Candle[] {
+export function candlesThrough(points: Points, seed: number, gaps: [number, number][] = []): Candle[] {
   const rng = makeRng(seed)
   const closes = pathThrough(points.map(([at, price]) => ({ at, price })), rng, 0.2)
-  return closes.map((close, i) => {
+  const candles = closes.map((close, i) => {
     const open = i === 0 ? close : closes[i - 1]
     const upper = 0.15 + rng.next() * 0.3
     const lower = 0.15 + rng.next() * 0.3
     return { time: i, open, close, high: Math.max(open, close) + upper, low: Math.min(open, close) - lower }
   })
+  // Shifting everything after a point opens a gap there.
+  for (const [at, jump] of gaps) {
+    for (const c of candles.slice(at)) {
+      c.open += jump
+      c.close += jump
+      c.high += jump
+      c.low += jump
+    }
+  }
+  return candles
 }
 
 export function chartExample(key: string): PatternExample | null {
   const base = CHART_SHAPES[key] ? key : MIRRORS[key]
   if (!base) return null
-  // The random wiggle can blur a delicate shape (pennants especially), so try
-  // a few seeds in order and keep the first one the scanner recognises.
+  // The random wiggle can blur a delicate shape, so try a few seeds in order
+  // and keep the first one the scanner recognises.
   // Same result every time, because the seeds are fixed.
   let fallback: PatternExample | null = null
   for (let seed = 1; seed <= 40; seed++) {
-    let candles = candlesThrough(CHART_SHAPES[base], seed)
+    let candles = candlesThrough(CHART_SHAPES[base], seed, GAPS[base])
     if (base !== key) candles = flip(candles)
     const match = findChartPatterns(candles).find((m) => m.pattern.key === key)
     if (match) return { candles, shapes: match.shapes }

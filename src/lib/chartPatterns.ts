@@ -18,7 +18,7 @@ import { findPivots, type Pivot } from './pivots'
 // The library: what each pattern is called and what it means
 // ---------------------------------------------------------------------------
 
-export type PatternFamily = 'reversal' | 'flag' | 'triangle' | 'channel' | 'breakout' | 'structure' | 'level'
+export type PatternFamily = 'reversal' | 'flag' | 'triangle' | 'channel' | 'breakout' | 'gap' | 'structure' | 'level'
 
 export interface ChartPatternInfo {
   key: string
@@ -126,6 +126,78 @@ export const CHART_PATTERNS: Record<string, ChartPatternInfo> = Object.fromEntri
     info('invertedCupAndHandle', 'Inverted cup and handle', 'bearish', 'reversal', 'Bearish continuation',
       'A rounded upside-down U back down to the old low, then a small bounce (the handle). Sellers are absorbing the last buyers.',
       'An upside-down V is not the same thing, and a handle that rises deep into the cup cancels the pattern.'),
+    info('roundingBottom', 'Rounding bottom', 'bullish', 'reversal', 'Bullish reversal',
+      'A slow, smooth U: selling fades out, price goes quiet at the bottom, then buyers gradually take over. Also called a saucer.',
+      "It takes a long time to form, and the right side can stall. It's confirmed when price gets back to where the U started."),
+    info('roundingTop', 'Rounding top', 'bearish', 'reversal', 'Bearish reversal',
+      'A slow, smooth upside-down U: buying fades out, price goes quiet at the top, then sellers gradually take over.',
+      "It takes a long time to form, and the right side can stall. It's confirmed when price gets back to where the arc started."),
+    info('vBottom', 'V-bottom', 'bullish', 'reversal', 'Bullish reversal',
+      'A sharp drop, then an equally sharp rally straight back up, with almost no time spent at the bottom. Sellers ran out all at once.',
+      "There's no warning before the turn, so it's only clear after a big chunk of the rally. Chasing it late means a wide stop."),
+    info('vTop', 'V-top', 'bearish', 'reversal', 'Bearish reversal',
+      'A sharp rally, then an equally sharp drop straight back down, with almost no time spent at the top. Buyers ran out all at once.',
+      "There's no warning before the turn, so it's only clear after a big chunk of the drop. Chasing it late means a wide stop."),
+    info('diamondBottom', 'Diamond bottom', 'bullish', 'reversal', 'Bullish reversal',
+      'After a drop, the swings first widen out, then narrow back in, drawing a diamond. The wild swinging calms down and buyers take over.',
+      'It looks like a symmetrical triangle once the left half is ignored. Wait for a close above the upper right edge.'),
+    info('diamondTop', 'Diamond top', 'bearish', 'reversal', 'Bearish reversal',
+      'After a rise, the swings first widen out, then narrow back in, drawing a diamond. The wild swinging calms down and sellers take over.',
+      'It looks like a symmetrical triangle once the left half is ignored. Wait for a close below the lower right edge.'),
+    info('broadeningFormation', 'Broadening formation', 'neutral', 'triangle', 'Wild swings, no edge',
+      'Each swing goes higher and lower than the last, like a megaphone. Nobody is in control and the swings keep getting bigger.',
+      'Trading breakouts here gets whipsawed: price keeps overshooting both lines. Many traders just stay out.'),
+    info('ascendingBroadeningWedge', 'Ascending broadening wedge', 'bearish', 'triangle', 'Bearish reversal',
+      'Both lines rise, but they spread apart: rallies overshoot higher while dips get deeper. The trend up is getting unstable.',
+      'The rallies look strong, which is exactly what traps late buyers. The deeper dips are the real message.'),
+    info('descendingBroadeningWedge', 'Descending broadening wedge', 'bullish', 'triangle', 'Bullish reversal',
+      'Both lines fall, but they spread apart: drops overshoot lower while bounces get bigger. The trend down is getting unstable.',
+      'The drops look scary, which is exactly what shakes out sellers. The bigger bounces are the real message.'),
+    info('bullishRectangle', 'Bullish rectangle', 'bullish', 'channel', 'Bullish continuation',
+      'An uptrend pauses in a flat range with a clear floor and ceiling. Buyers are resting, and it usually breaks out upward.',
+      'Until it breaks, it is just a range. Buying in the middle of it has no edge; the floor or the breakout does.'),
+    info('bearishRectangle', 'Bearish rectangle', 'bearish', 'channel', 'Bearish continuation',
+      'A downtrend pauses in a flat range with a clear floor and ceiling. Sellers are resting, and it usually breaks down.',
+      'Until it breaks, it is just a range. Selling in the middle of it has no edge; the ceiling or the breakdown does.'),
+    info('risingTrendline', 'Rising trendline', 'bullish', 'channel', 'Uptrend support',
+      'A straight line through three or more rising lows. Each time price dips to it, buyers step in a little higher.',
+      "Two touches make a guess, three make a trendline. A close below it is the first sign the uptrend is over."),
+    info('fallingTrendline', 'Falling trendline', 'bearish', 'channel', 'Downtrend resistance',
+      'A straight line through three or more falling highs. Each time price bounces to it, sellers step in a little lower.',
+      "Two touches make a guess, three make a trendline. A close above it is the first sign the downtrend is over."),
+    info('volatilitySqueeze', 'Volatility squeeze', 'neutral', 'triangle', 'A big move, either way',
+      'The candles have shrunk to a fraction of their usual size. Quiet periods like this tend to end with a burst.',
+      "It tells you a move is coming, not which way. Let the breakout pick the side."),
+    info('bullishChangeOfCharacter', 'Bullish change of character', 'bullish', 'structure', 'Downtrend may be over',
+      'In a downtrend of lower highs and lower lows, price just closed above the last lower high. Traders call this a change of character (CHoCH).',
+      "It's an early warning, not a new uptrend yet. A higher low on the next dip would confirm it."),
+    info('bearishChangeOfCharacter', 'Bearish change of character', 'bearish', 'structure', 'Uptrend may be over',
+      'In an uptrend of higher highs and higher lows, price just closed below the last higher low. Traders call this a change of character (CHoCH).',
+      "It's an early warning, not a new downtrend yet. A lower high on the next bounce would confirm it."),
+    info('islandBottom', 'Island bottom', 'bullish', 'gap', 'Bullish reversal',
+      'Price gapped down, spent a few days stranded below, then gapped back up. The candles in between sit alone like an island.',
+      "It's rare and needs real gaps on both sides. If price falls back into the island, the reversal failed."),
+    info('islandTop', 'Island top', 'bearish', 'gap', 'Bearish reversal',
+      'Price gapped up, spent a few days stranded above, then gapped back down. The candles in between sit alone like an island.',
+      "It's rare and needs real gaps on both sides. If price climbs back into the island, the reversal failed."),
+    info('breakawayGapUp', 'Breakaway gap up', 'bullish', 'gap', 'Bullish breakout',
+      'After a quiet sideways stretch, price gapped up clean out of the range. Breakaway gaps often start a new trend.',
+      'Wait a day or two: a breakaway gap that fills right away was a false start.'),
+    info('breakawayGapDown', 'Breakaway gap down', 'bearish', 'gap', 'Bearish breakdown',
+      'After a quiet sideways stretch, price gapped down clean out of the range. Breakaway gaps often start a new trend.',
+      'Wait a day or two: a breakaway gap that fills right away was a false start.'),
+    info('runawayGapUp', 'Runaway gap up', 'bullish', 'gap', 'Bullish continuation',
+      'In the middle of an uptrend, price gapped up again. Buyers are so keen they skip prices, which often means the trend has more to go.',
+      'It looks just like an exhaustion gap until later. A runaway gap stays open; an exhaustion gap fills.'),
+    info('runawayGapDown', 'Runaway gap down', 'bearish', 'gap', 'Bearish continuation',
+      'In the middle of a downtrend, price gapped down again. Sellers are so keen they skip prices, which often means the trend has more to go.',
+      'It looks just like an exhaustion gap until later. A runaway gap stays open; an exhaustion gap fills.'),
+    info('exhaustionGapDown', 'Exhaustion gap down', 'bullish', 'gap', 'Bullish reversal',
+      'After a long slide, price gapped down one last time, then quickly climbed back and filled the gap. The final panic ran out of sellers.',
+      "It only becomes an exhaustion gap once it's filled. Before that, it looks like one more gap down."),
+    info('exhaustionGapUp', 'Exhaustion gap up', 'bearish', 'gap', 'Bearish reversal',
+      'After a long run up, price gapped up one last time, then quickly fell back and filled the gap. The final burst ran out of buyers.',
+      "It only becomes an exhaustion gap once it's filled. Before that, it looks like one more gap up."),
   ].map((p) => [p.key, p]),
 )
 
@@ -155,6 +227,7 @@ interface Chart {
 }
 
 function readChart(candles: Candle[]): Chart {
+  // The average true range over the whole chart: a normal day's size here.
   const atr = averageTrueRange(candles, candles.length - 1)
   const last = candles.length - 1
   return { candles, atr, last, close: candles[last].close, pivots: findPivots(candles, SWING * atr) }
@@ -181,6 +254,53 @@ function fitLine(points: ChartPoint[]) {
 
 const lineThrough = (a: ChartPoint, b: ChartPoint) => (i: number) =>
   a.price + ((b.price - a.price) * (i - a.index)) / (b.index - a.index)
+
+// Curved line of best fit: the parabola y = a·t² + b·t + c closest to the
+// points, with t running from 0 (first point) to 1 (last point). The three
+// "normal equations" of least squares are solved with Cramer's rule.
+function fitParabola(points: ChartPoint[]) {
+  const first = points[0].index
+  const span = points[points.length - 1].index - first
+  const t = (index: number) => (index - first) / span
+  const s = [0, 0, 0, 0, 0] // sums of t^0 ... t^4
+  const r = [0, 0, 0] // sums of y, t·y, t²·y
+  for (const p of points) {
+    const x = t(p.index)
+    for (let k = 0; k < 5; k++) s[k] += x ** k
+    for (let k = 0; k < 3; k++) r[k] += x ** k * p.price
+  }
+  const det = (m: number[][]) =>
+    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+    m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+    m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
+  const matrix = [
+    [s[4], s[3], s[2]],
+    [s[3], s[2], s[1]],
+    [s[2], s[1], s[0]],
+  ]
+  const rhs = [r[2], r[1], r[0]]
+  const d = det(matrix)
+  // Cramer's rule: swap one column for the right-hand side.
+  const solve = (col: number) => det(matrix.map((row, i) => row.map((v, j) => (j === col ? rhs[i] : v)))) / d
+  const [a, b, c] = [solve(0), solve(1), solve(2)]
+  return {
+    a, // above 0: the curve opens upward (a U)
+    at: (index: number) => a * t(index) ** 2 + b * t(index) + c,
+    vertex: first + (-b / (2 * a)) * span, // the index where the curve turns
+  }
+}
+
+function highestHigh(candles: Candle[], from: number, to: number): ChartPoint {
+  let best = Math.max(0, from)
+  for (let i = best; i <= to; i++) if (candles[i].high > candles[best].high) best = i
+  return { index: best, price: candles[best].high }
+}
+
+function lowestLow(candles: Candle[], from: number, to: number): ChartPoint {
+  let best = Math.max(0, from)
+  for (let i = best; i <= to; i++) if (candles[i].low < candles[best].low) best = i
+  return { index: best, price: candles[best].low }
+}
 
 function found(key: string, shapes: Shape[], start: number, end: number, labelAt?: ChartPoint, bias?: Bias): ChartPatternMatch {
   const pattern = CHART_PATTERNS[key]
@@ -386,6 +506,289 @@ const flagOrPennant: Detector = ({ candles, pivots, atr, last }, side) => {
   return null
 }
 
+// Rounding bottom: a slow U. We fit a parabola through the closes and check
+// three things: it's a real U (not a V), price spent a good while near the
+// bottom, and the right side has climbed back at least halfway.
+const roundingBottom: Detector = ({ candles, atr, last, close }, side) => {
+  for (const length of [50, 42, 34, 28]) {
+    const start = last - length + 1
+    if (start < 0) continue
+    const points = candles.slice(start).map((c, k) => ({ index: start + k, price: c.close }))
+    const curve = fitParabola(points)
+    if (curve.a <= 0) continue
+    const bottomAt = curve.vertex
+    if (bottomAt < start + 0.3 * length || bottomAt > start + 0.72 * length) continue
+
+    const bottom = curve.at(bottomAt)
+    const left = curve.at(start) - bottom
+    const right = curve.at(last) - bottom
+    if (left < 4 * atr || right < 0.45 * left || right > 1.4 * left) continue
+
+    // The closes hug the curve...
+    const error = mean(points.map((p) => Math.abs(p.price - curve.at(p.index))))
+    if (error > 0.12 * left) continue
+    // ...and linger near the bottom (a V would race through it).
+    const lowest = Math.min(...points.map((p) => p.price))
+    const nearBottom = points.filter((p) => p.price <= lowest + 0.15 * left).length
+    if (nearBottom < 0.22 * length) continue
+    if (close < candles[last - 4].close) continue // still curling up
+
+    const arc: ChartPoint[] = []
+    for (let k = 0; k <= 16; k++) {
+      const i = start + ((last - start) * k) / 16
+      arc.push({ index: i, price: curve.at(i) - 0.6 * atr }) // just under the candles
+    }
+    const low = lowestLow(candles, Math.round(bottomAt) - 4, Math.round(bottomAt) + 4)
+    return found(
+      pick(side, 'roundingBottom', 'roundingTop'),
+      [{ kind: 'curve', points: arc }, { kind: 'dot', at: low, label: 'Bottom', place: 'below' }],
+      start,
+      last,
+      { index: Math.round(bottomAt), price: low.price - 2 * atr },
+    )
+  }
+  return null
+}
+
+// V-bottom: a steep fall straight into a steep climb, with only a few
+// candles anywhere near the low.
+const vBottom: Detector = ({ candles, pivots, atr, last, close }, side) => {
+  // The lowest swing low of the last 14 candles (a small dip on the way back
+  // up would otherwise count as the bottom).
+  const lows = pivots.filter((p) => p.kind === 'low' && p.confirmed && last - p.index <= 14)
+  if (lows.length === 0) return null
+  const bottom = lows.reduce((a, b) => (b.price < a.price ? b : a))
+  if (last - bottom.index < 3) return null
+
+  const top = highestHigh(candles, bottom.index - 12, bottom.index)
+  const drop = top.price - bottom.price
+  const fallDays = bottom.index - top.index
+  if (drop < 6 * atr || fallDays < 3 || drop / fallDays < 0.6 * atr) return null
+
+  const peak = highestHigh(candles, bottom.index, last)
+  const climb = peak.price - bottom.price
+  const climbDays = peak.index - bottom.index
+  if (climb < 0.6 * drop || climbDays < 2 || climb / climbDays < 0.5 * atr) return null
+  if (close < bottom.price + 0.5 * drop) return null
+
+  // A U spends about 45% of its time in the bottom fifth of its depth; a V, far less.
+  const span = candles.slice(top.index, last + 1)
+  if (span.filter((c) => c.low <= bottom.price + 0.2 * drop).length > 0.36 * span.length) return null
+
+  return found(
+    pick(side, 'vBottom', 'vTop'),
+    [
+      { kind: 'line', from: top, to: pt(bottom) },
+      { kind: 'line', from: pt(bottom), to: peak },
+      { kind: 'dot', at: pt(bottom), label: pick(side, 'Bottom', 'Top'), place: 'below' },
+    ],
+    top.index,
+    last,
+    { index: top.index, price: top.price + 1.5 * atr },
+  )
+}
+
+// Diamond bottom: the swings spread out and then pull back in. The widest
+// high and the widest low sit in the middle, and the ends are narrow.
+const diamond: Detector = ({ candles, pivots, atr, last }, side) => {
+  const swings = pivots.filter((p) => p.confirmed && last - p.index <= 55)
+  for (let count = Math.min(9, swings.length); count >= 6; count--) {
+    const used = swings.slice(-count)
+    if (last - used[used.length - 1].index > 12) break
+    const highs = used.filter((p) => p.kind === 'high')
+    const lows = used.filter((p) => p.kind === 'low')
+    if (highs.length < 3 || lows.length < 3) continue
+
+    const top = highs.reduce((a, b) => (b.price > a.price ? b : a))
+    const bottom = lows.reduce((a, b) => (b.price < a.price ? b : a))
+    const [firstHigh, lastHigh] = [highs[0], highs[highs.length - 1]]
+    const [firstLow, lastLow] = [lows[0], lows[lows.length - 1]]
+    if (top === firstHigh || top === lastHigh || bottom === firstLow || bottom === lastLow) continue
+    if (Math.abs(top.index - bottom.index) > 12) continue
+
+    const width = top.price - bottom.price
+    if (width < 6 * atr) continue
+    const inside = (p: Pivot, share: number) => p.price <= top.price - share * width && p.price >= bottom.price + share * width
+    if (!inside(firstHigh, 0.2) || !inside(firstLow, 0.2) || !inside(lastHigh, 0.25) || !inside(lastLow, 0.25)) continue
+    if (lastHigh.price - lastLow.price > 0.6 * width) continue
+
+    // A diamond bottom comes after a fall.
+    const first = used[0].index
+    const before = candles[Math.max(0, first - 10)].close
+    if (first < 6 || before - (top.price + bottom.price) / 2 < 0.4 * width) continue
+
+    return found(
+      pick(side, 'diamondBottom', 'diamondTop'),
+      [
+        { kind: 'line', from: pt(firstHigh), to: pt(top) },
+        { kind: 'line', from: pt(top), to: pt(lastHigh) },
+        { kind: 'line', from: pt(firstLow), to: pt(bottom) },
+        { kind: 'line', from: pt(bottom), to: pt(lastLow) },
+      ],
+      first,
+      last,
+      { index: top.index, price: top.price + 1.5 * atr },
+    )
+  }
+  return null
+}
+
+// A gap up at candle i: its low is clearly above the previous candle's high.
+const gapUpAt = (candles: Candle[], i: number, atr: number) => i > 0 && candles[i].low - candles[i - 1].high >= 0.25 * atr
+const gapDownAt = (candles: Candle[], i: number, atr: number) => i > 0 && candles[i - 1].low - candles[i].high >= 0.25 * atr
+
+// Gaps, in order of how much they say: an island, an exhaustion gap that got
+// filled, a breakaway gap out of a range, then a runaway gap mid-trend.
+const gaps: Detector = ({ candles, atr, last, close }, side) => {
+  const recent = (days: number) => Array.from({ length: days }, (_, k) => last - k).filter((i) => i > 0)
+  const gapShape = (at: number, price: number, label: string): Shape => ({ kind: 'level', price, fromIndex: at - 1, toIndex: Math.min(last, at + 4), label })
+
+  // Island bottom: a gap down, a few stranded candles, then a gap up.
+  for (const up of recent(10)) {
+    if (!gapUpAt(candles, up, atr)) continue
+    for (let down = up - 1; down >= Math.max(1, up - 12); down--) {
+      if (!gapDownAt(candles, down, atr)) continue
+      const island = candles.slice(down, up)
+      const islandTop = Math.max(...island.map((c) => c.high))
+      if (islandTop >= candles[down - 1].low || islandTop >= candles[up].low) continue
+      return found(
+        pick(side, 'islandBottom', 'islandTop'),
+        [
+          { kind: 'level', price: islandTop, fromIndex: down - 1, toIndex: up, label: 'Island' },
+          { kind: 'dot', at: lowestLow(candles, down, up - 1), label: '', place: 'below' },
+        ],
+        down - 1,
+        last,
+        { index: down, price: islandTop + 2.5 * atr },
+      )
+    }
+  }
+
+  // Exhaustion gap down: a long slide, one more gap down, then price filled it.
+  for (const g of recent(10)) {
+    if (!gapDownAt(candles, g, atr) || g < 12) continue
+    const slide = candles[Math.max(0, g - 20)].close - candles[g - 1].close
+    const gapTop = candles[g - 1].low
+    const filled = candles.slice(g + 1).some((c) => c.close > gapTop)
+    if (slide >= 7 * atr && filled && close > candles[g].high) {
+      return found(pick(side, 'exhaustionGapDown', 'exhaustionGapUp'), [gapShape(g, gapTop, 'Gap filled')], g - 1, last, {
+        index: g,
+        price: gapTop + 2.5 * atr,
+      })
+    }
+  }
+
+  // Breakaway and runaway gaps up, still open (price never came back to fill them).
+  for (const g of recent(8)) {
+    if (!gapUpAt(candles, g, atr) || g < 16) continue
+    const gapBottom = candles[g - 1].high
+    if (candles.slice(g).some((c) => c.low <= gapBottom)) continue
+    const base = candles.slice(g - 15, g)
+    const baseHigh = Math.max(...base.map((c) => c.high))
+    const baseLow = Math.min(...base.map((c) => c.low))
+    const label = { index: g, price: candles[g].low - 2.5 * atr }
+    if (baseHigh - baseLow <= 7 * atr && candles[g].low > baseHigh) {
+      return found(
+        pick(side, 'breakawayGapUp', 'breakawayGapDown'),
+        [{ kind: 'level', price: baseHigh, fromIndex: g - 15, toIndex: g, label: 'Range high' }, gapShape(g, gapBottom, 'Gap')],
+        g - 15,
+        last,
+        label,
+      )
+    }
+    if (candles[g - 1].close - candles[g - 15].close >= 5 * atr) {
+      return found(pick(side, 'runawayGapUp', 'runawayGapDown'), [gapShape(g, gapBottom, 'Gap')], g - 15, last, label)
+    }
+  }
+  return null
+}
+
+// Rising trendline: three or more swing lows on one rising straight line,
+// with price never closing far below it.
+const trendline: Detector = ({ candles, pivots, atr, last, close }, side) => {
+  const lows = pivots.filter((p) => p.kind === 'low' && p.confirmed && last - p.index <= 55)
+  for (let count = Math.min(5, lows.length); count >= 3; count--) {
+    const touches = lows.slice(-count)
+    const first = touches[0].index
+    if (last - first < 15 || last - touches[count - 1].index > 25) continue
+    const line = fitLine(touches.map(pt))
+    if (line.slope < 0.05 * atr) continue
+    if (!touches.every((p) => Math.abs(p.price - line.at(p.index)) <= 0.8 * atr)) continue
+    if (candles.slice(first).some((c, k) => c.close < line.at(first + k) - 0.8 * atr)) continue
+    if (close > line.at(last) + 5 * atr) continue // too far above for the line to matter
+
+    return found(
+      pick(side, 'risingTrendline', 'fallingTrendline'),
+      [
+        { kind: 'line', from: { index: first, price: line.at(first) }, to: { index: last, price: line.at(last) }, label: 'Trendline' },
+        ...touches.map((p): Shape => ({ kind: 'dot', at: pt(p), label: '', place: 'below' })),
+      ],
+      first,
+      last,
+    )
+  }
+  return null
+}
+
+// Bullish change of character: a downtrend (a lower high, then a lower low),
+// and then, in the last few candles, a close above that lower high.
+const changeOfCharacter: Detector = ({ candles, pivots, atr, last }, side) => {
+  const swings = pivots.filter((p) => p.confirmed && last - p.index <= 50)
+  const highs = swings.filter((p) => p.kind === 'high')
+  const lows = swings.filter((p) => p.kind === 'low')
+  if (highs.length < 2 || lows.length < 2) return null
+
+  const [earlierHigh, lowerHigh] = highs.slice(-2)
+  const [earlierLow, lowerLow] = lows.slice(-2)
+  if (lowerHigh.price > earlierHigh.price - 0.3 * atr || lowerLow.price > earlierLow.price - 0.3 * atr) return null
+  if (lowerLow.index < lowerHigh.index) return null // the lower low has to come after the lower high
+
+  // The first close above the lower high, after the lower low.
+  let breakAt = -1
+  for (let i = lowerLow.index + 1; i <= last; i++) {
+    if (candles[i].close > lowerHigh.price + 0.2 * atr) {
+      breakAt = i
+      break
+    }
+  }
+  if (breakAt < 0 || last - breakAt > 4) return null
+
+  return found(
+    pick(side, 'bullishChangeOfCharacter', 'bearishChangeOfCharacter'),
+    [
+      { kind: 'level', price: lowerHigh.price, fromIndex: lowerHigh.index, toIndex: last, label: pick(side, 'Last lower high', 'Last higher low') },
+      { kind: 'dot', at: pt(earlierHigh), label: pick(side, 'High', 'Low'), place: 'above' },
+      { kind: 'dot', at: pt(lowerHigh), label: pick(side, 'LH', 'HL'), place: 'above' },
+      { kind: 'dot', at: pt(lowerLow), label: pick(side, 'LL', 'HH'), place: 'below' },
+      { kind: 'dot', at: { index: breakAt, price: candles[breakAt].high }, label: 'CHoCH', place: 'above' },
+    ],
+    earlierHigh.index,
+    last,
+  )
+}
+
+// Volatility squeeze: the last 8 candles are less than half their usual size.
+function squeeze({ candles, last }: Chart): ChartPatternMatch[] {
+  if (last < 40) return []
+  const size = (cs: Candle[]) => mean(cs.map((c) => c.high - c.low))
+  const recent = candles.slice(last - 7)
+  const usual = size(candles.slice(last - 37, last - 7))
+  const top = Math.max(...recent.map((c) => c.high))
+  const bottom = Math.min(...recent.map((c) => c.low))
+  if (size(recent) > 0.5 * usual || top - bottom > 2.5 * usual) return []
+  return [
+    found(
+      'volatilitySqueeze',
+      [
+        { kind: 'level', price: top, fromIndex: last - 7, toIndex: last, label: 'Squeeze' },
+        { kind: 'level', price: bottom, fromIndex: last - 7, toIndex: last },
+      ],
+      last - 7,
+      last,
+    ),
+  ]
+}
+
 // Higher highs and higher lows: the longest run of swings at the end where
 // each swing beats the swing of the same kind before it.
 const marketStructure: Detector = ({ pivots, atr, last }, side) => {
@@ -449,14 +852,29 @@ function trendLines({ candles, pivots, atr, last, close }: Chart): ChartPatternM
 
     let key: string | null = null
     if (widthEnd < 0.65 * widthStart) {
+      // Squeezing together: a triangle or a wedge.
       if (flat(up) && rising(down)) key = 'ascendingTriangle'
       else if (flat(down) && falling(up)) key = 'descendingTriangle'
       else if (falling(up) && rising(down)) key = 'symmetricalTriangle'
       else if (rising(up) && rising(down)) key = 'risingWedge'
       else if (falling(up) && falling(down)) key = 'fallingWedge'
+    } else if (widthEnd > 1.5 * widthStart && widthStart > 0) {
+      // Spreading apart: a broadening pattern (a megaphone). Two swings
+      // spreading apart happen all the time, so these need five or more.
+      if (used.length < 5) continue
+      if (rising(up) && rising(down)) key = 'ascendingBroadeningWedge'
+      else if (falling(up) && falling(down)) key = 'descendingBroadeningWedge'
+      else if (!falling(up) && !rising(down)) key = 'broadeningFormation'
     } else if (Math.abs(up - down) <= 0.08 && widthStart >= 2 * atr) {
+      // Parallel: a channel. A flat one right after a trend is a rectangle,
+      // a pause that usually carries on in the trend's direction.
       const slope = (up + down) / 2
-      key = rising(slope) ? 'ascendingChannel' : falling(slope) ? 'descendingChannel' : 'horizontalChannel'
+      if (rising(slope)) key = 'ascendingChannel'
+      else if (falling(slope)) key = 'descendingChannel'
+      else {
+        const into = start >= 8 ? candles[start].close - candles[Math.max(0, start - 15)].close : 0
+        key = into > 4 * atr ? 'bullishRectangle' : into < -4 * atr ? 'bearishRectangle' : 'horizontalChannel'
+      }
     }
     if (!key) return []
 
@@ -568,15 +986,22 @@ export function findChartPatterns(candles: Candle[]): ChartPatternMatch[] {
     ...bothWays(multipleBottom, chart, flipped),
     ...bothWays(headAndShoulders, chart, flipped),
     ...bothWays(cupAndHandle, chart, flipped),
+    ...bothWays(diamond, chart, flipped),
+    ...bothWays(roundingBottom, chart, flipped),
+    ...bothWays(vBottom, chart, flipped),
     ...bothWays(flagOrPennant, chart, flipped),
     ...trendLines(chart),
+    ...squeeze(chart),
+    ...bothWays(trendline, chart, flipped),
+    ...bothWays(gaps, chart, flipped),
+    ...bothWays(changeOfCharacter, chart, flipped),
     ...bothWays(marketStructure, chart, flipped),
     ...levels(chart),
   ]
 }
 
 // The most specific pattern families come first.
-const PRIORITY: PatternFamily[] = ['reversal', 'flag', 'triangle', 'channel', 'breakout', 'structure', 'level']
+const PRIORITY: PatternFamily[] = ['reversal', 'flag', 'triangle', 'channel', 'breakout', 'gap', 'structure', 'level']
 
 // The few patterns worth showing: at most one per family, most specific
 // first, without repeating the same story twice.
@@ -589,6 +1014,10 @@ export function pickChartPatterns(matches: ChartPatternMatch[], max = 3): ChartP
     // A channel or triangle already shows the trend; a reversal already shows its level.
     if (m.pattern.family === 'structure' && (families.includes('channel') || families.includes('triangle'))) continue
     if (m.pattern.family === 'level' && families.includes('reversal')) continue
+    // A reversal already explains the range it formed in. A rectangle or
+    // trendline reading the same candles the other way would only confuse.
+    const reversal = picked.find((p) => p.pattern.family === 'reversal')
+    if (m.pattern.family === 'channel' && reversal && m.bias !== 'neutral' && m.bias !== reversal.bias) continue
     picked.push(m)
     if (picked.length === max) break
   }

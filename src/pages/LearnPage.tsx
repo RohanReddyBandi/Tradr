@@ -1,15 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Bias } from '../types'
-import { LIBRARY, findEntry, type LibraryEntry } from '../lib/library'
+import { GROUPS, LIBRARY, findEntry, type LibraryEntry } from '../lib/library'
 import { candleExample, chartExample } from '../lib/examples'
 import { computeStats, type TradeRecord } from '../lib/stats'
+import { DRAWABLE, PRACTICE_CANDLES } from '../lib/practice'
 import { MiniChart } from '../components/MiniChart'
 import { STARTING_BALANCE } from '../game/useGame'
+import type { PracticeProgress } from '../game/usePractice'
+import type { PracticeMode } from './PracticePage'
 
 interface Props {
   history: TradeRecord[]
   focus: string | null // a pattern name to jump to (from a Breakdown or Stats)
+  progress: PracticeProgress
+  onPractice: (mode: PracticeMode, key: string) => void
 }
+
+const BUILDABLE = new Set(PRACTICE_CANDLES.map((p) => p.key))
+const DRAWABLE_KEYS = new Set(DRAWABLE.map((p) => p.key))
 
 type Kind = 'chart' | 'candle'
 
@@ -19,10 +27,11 @@ const BIAS_STYLE: Record<Bias, string> = {
   neutral: 'border-neutral-700 text-soft',
 }
 
-export function LearnPage({ history, focus }: Props) {
+export function LearnPage({ history, focus, progress, onPractice }: Props) {
   const focused = focus ? findEntry(focus) : undefined
   // Opening Learn on a pattern starts on its tab, highlighted, scrolled into view.
   const [kind, setKind] = useState<Kind>(focused?.kind ?? 'chart')
+  const [group, setGroup] = useState<string | null>(null) // null shows every group
   const [highlight, setHighlight] = useState<string | null>(focused?.key ?? null)
   const { patterns } = useMemo(() => computeStats(history, STARTING_BALANCE), [history])
 
@@ -40,11 +49,12 @@ export function LearnPage({ history, focus }: Props) {
     const entry = findEntry(name)
     if (!entry) return
     setKind(entry.kind)
+    setGroup(null)
     setHighlight(entry.key)
     requestAnimationFrame(() => document.getElementById(`pattern-${entry.key}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
   }
 
-  const entries = LIBRARY.filter((e) => e.kind === kind)
+  const entries = LIBRARY.filter((e) => e.kind === kind && (!group || e.group === group))
 
   return (
     <div className="h-full overflow-y-auto">
@@ -80,7 +90,10 @@ export function LearnPage({ history, focus }: Props) {
               key={k}
               role="tab"
               aria-selected={kind === k}
-              onClick={() => setKind(k)}
+              onClick={() => {
+                setKind(k)
+                setGroup(null)
+              }}
               className={`h-11 rounded-xl px-4 text-[15px] font-medium transition-colors ${
                 kind === k ? 'bg-neutral-800 text-white' : 'text-muted hover:text-soft'
               }`}
@@ -91,17 +104,54 @@ export function LearnPage({ history, focus }: Props) {
           ))}
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {entries.map((entry) => (
-            <PatternCard key={entry.key} entry={entry} highlighted={highlight === entry.key} record={patterns.get(entry.name)} />
+        {/* Narrow the list down to one group, e.g. just the gaps. */}
+        <div className="mt-4 flex flex-wrap gap-1.5" role="group" aria-label="Show">
+          {[null, ...GROUPS[kind]].map((g) => (
+            <button
+              key={g ?? 'all'}
+              onClick={() => setGroup(g)}
+              aria-pressed={group === g}
+              className={`min-h-10 rounded-full border px-3.5 text-[14px] transition-colors ${
+                group === g ? 'border-neutral-300 bg-neutral-100 text-black' : 'border-neutral-800 text-soft hover:border-neutral-600'
+              }`}
+            >
+              {g ?? 'All'}
+            </button>
           ))}
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {entries.map((entry) => {
+            const practice =
+              entry.kind === 'candle' && BUILDABLE.has(entry.key)
+                ? { label: 'Build it', mode: 'build' as const, done: progress.built.includes(entry.key) }
+                : entry.kind === 'chart' && DRAWABLE_KEYS.has(entry.key)
+                  ? { label: 'Draw it', mode: 'draw' as const, done: progress.drawn.includes(entry.key) }
+                  : null
+            return (
+              <PatternCard
+                key={entry.key}
+                entry={entry}
+                highlighted={highlight === entry.key}
+                record={patterns.get(entry.name)}
+                practice={practice && { ...practice, onClick: () => onPractice(practice.mode, entry.key) }}
+              />
+            )
+          })}
         </div>
       </div>
     </div>
   )
 }
 
-function PatternCard({ entry, highlighted, record }: { entry: LibraryEntry; highlighted: boolean; record?: { seen: number; correct: number } }) {
+interface CardProps {
+  entry: LibraryEntry
+  highlighted: boolean
+  record?: { seen: number; correct: number }
+  practice: { label: string; done: boolean; onClick: () => void } | null // "Build it" / "Draw it"
+}
+
+function PatternCard({ entry, highlighted, record, practice }: CardProps) {
   const example = useMemo(() => (entry.kind === 'candle' ? candleExample(entry.key) : chartExample(entry.key)), [entry])
   return (
     <article
@@ -121,10 +171,19 @@ function PatternCard({ entry, highlighted, record }: { entry: LibraryEntry; high
         <span className="font-semibold text-amber">The trap: </span>
         {entry.trap}
       </p>
-      {record && (
-        <p className="mt-3 border-t border-edge pt-3 font-mono text-xs text-muted">
-          You: {record.correct}/{record.seen} right
-        </p>
+      {(record || practice) && (
+        <div className="mt-3 flex min-h-11 items-center justify-between gap-3 border-t border-edge pt-3">
+          <span className="font-mono text-xs text-muted">{record && `You: ${record.correct}/${record.seen} right`}</span>
+          {practice && (
+            <button
+              onClick={practice.onClick}
+              className="h-10 shrink-0 rounded-xl border border-neutral-800 px-3.5 text-sm text-soft transition-colors hover:border-neutral-600 hover:text-white"
+            >
+              {practice.label}
+              {practice.done && <span className="ml-1.5 text-up">✓</span>}
+            </button>
+          )}
+        </div>
       )}
     </article>
   )

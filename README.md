@@ -4,6 +4,10 @@ A Tinder-style trading practice game. Swipe right to buy, left to sell, up to sk
 then watch the next 30 days play out and get a breakdown of whether your call made
 sense. Fake money only.
 
+There's also a **Practice** tab with no money involved: mark the candlestick patterns
+hidden in a chart, build a named candlestick by dragging candles into shape, or draw a
+chart pattern with your finger and see whether the scanner recognises it.
+
 ## Run it
 
 ```bash
@@ -71,20 +75,38 @@ like generated cards; afterwards the Breakdown reveals the stock and the dates.
   its read is the answer key: bullish patterns add to a score, bearish ones subtract,
   and a weak or mixed score counts as "no clear setup".
 
+## Practice
+
+Three drills, all graded by the same detectors that grade your swipes:
+
+- **Mark**: a short chart with three candlestick patterns planted in it. Tap a candle,
+  name it, then check. Any candle inside a pattern counts. The chart is rebuilt until the
+  detector sees exactly the planted patterns, so there are no surprise answers.
+- **Build**: pick a candlestick pattern, then drag your candles' high, low, open, and
+  close until the detector recognises it. The candles before yours set up the move the
+  pattern needs (a hammer only counts after a drop).
+- **Draw**: draw a chart pattern in one stroke. The line becomes 60 candles and the chart
+  pattern scanner reads them. "Show a guide to trace" overlays the Learn tab's example.
+
+Every pattern in the Learn tab has a **Build it** or **Draw it** button that opens the drill
+on that pattern.
+
 ## Saving
 
 Your balance and history are saved in this browser (localStorage), so they survive a
-reload. Reset on the Stats page starts over at $10,000.
+reload. Reset on the Stats page starts over at $10,000. Practice progress is saved
+separately and isn't cleared by Reset.
 
 ## Build status
 
 1. ✅ Swipe card UI
-2. ✅ Synthetic chart generator: 13 setups (plus a no-edge "chop" chart), each in a bullish and a bearish version
+2. ✅ Synthetic chart generator: 18 setups (plus a no-edge "chop" chart), each in a bullish and a bearish version
 3. ✅ Trade setup panel (position size, draggable stop loss and take profit, live risk/reward) and a replay that closes at the stop or target
 4. ✅ Breakdown: replay, markup drawn on the chart, decision graded separately from the outcome
-5. ✅ Pattern detection: 31 candlestick patterns and 28 chart patterns, found from the raw candles alone (this is what will read real charts)
+5. ✅ Pattern detection: 44 candlestick patterns and 52 chart patterns (including gaps, islands, diamonds, rounding and V bottoms, broadening formations, rectangles, trendlines, and changes of character), found from the raw candles alone
 6. ✅ Stats (equity curve, win rate, average R, decision accuracy, skip stats, accuracy by difficulty and by pattern), a Learn tab with every pattern, and saving to localStorage
 7. ✅ Real historical data: 270 real 90-day windows from 45 stocks and funds, mixed in with generated charts
+8. ✅ Practice tab: mark the candles, build a candlestick, draw a chart pattern
 
 ## How a card works
 
@@ -118,9 +140,9 @@ reload. Reset on the Stats page starts over at $10,000.
 | `src/components/CandleChart.tsx` | The black candlestick chart (TradingView Lightweight Charts) |
 | `src/components/Markup.tsx` | Lines, boxes, and labels drawn on top of the chart |
 | `src/components/TradeLines.tsx` | The draggable stop loss and take profit lines |
-| `src/lib/candlePatterns.ts` | Detectors for 31 candlestick patterns |
+| `src/lib/candlePatterns.ts` | Detectors for 44 candlestick patterns |
 | `src/lib/pivots.ts` | Finds swing highs and lows (a "zigzag") |
-| `src/lib/chartPatterns.ts` | Detectors for 28 chart patterns, with meanings and common traps |
+| `src/lib/chartPatterns.ts` | Detectors for 52 chart patterns, with meanings and common traps |
 | `src/lib/setups.ts` | The chart setups the generator can build |
 | `src/lib/generator.ts` | Builds random charts with a setup baked in |
 | `src/lib/trade.ts` | Trade math and the replay that checks the stop and target |
@@ -132,6 +154,10 @@ reload. Reset on the Stats page starts over at $10,000.
 | `src/lib/library.ts`, `src/lib/examples.ts` | The Learn tab's pattern list and example charts |
 | `src/pages/StatsPage.tsx`, `src/components/EquityChart.tsx` | Stats page and the equity curve |
 | `src/pages/LearnPage.tsx`, `src/components/MiniChart.tsx` | Learn tab and its small example charts |
+| `src/lib/practice.ts` | The Practice drills' logic: planting patterns, grading marks, turning a drawing into candles |
+| `src/pages/PracticePage.tsx`, `src/pages/practice/` | The Practice tab and its three drills |
+| `src/game/usePractice.ts` | Practice progress, saved in the browser |
+| `src/components/ChartLayers.tsx`, `src/components/chartScale.ts` | Plain SVG candles and markup, shared by Learn and Practice |
 
 ## Stack
 

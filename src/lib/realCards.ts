@@ -40,6 +40,7 @@ const WEIGHT: Record<PatternFamily, number> = {
   flag: 2,
   triangle: 2,
   breakout: 2,
+  gap: 2,
   channel: 1,
   structure: 1,
   level: 1,

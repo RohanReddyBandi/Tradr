@@ -119,6 +119,18 @@ const bullishMarubozu: Test = (cs, i) => {
   return isGreen(c) && body(c) >= 0.9 * range(c) && range(c) >= 0.8 * averageRange(cs, i)
 }
 
+// Opens right at its low and climbs for most of the day, after a drop.
+const bullishBeltHold: Test = (cs, i) => {
+  const c = cs[i]
+  return (
+    isGreen(c) &&
+    lowerWick(c) <= 0.03 * range(c) &&
+    body(c) >= 0.6 * range(c) &&
+    range(c) >= averageRange(cs, i) &&
+    trendInto(cs, i) === 'down'
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Two-candle tests (a = i - 1, b = i)
 // ---------------------------------------------------------------------------
@@ -175,6 +187,55 @@ const tweezerBottom: Test = (cs, i) => {
   )
 }
 
+// A harami whose small candle is a doji: the selling stalled completely.
+const bullishHaramiCross: Test = (cs, i) => {
+  if (i < 1) return false
+  const [a, b] = [cs[i - 1], cs[i]]
+  return (
+    isRed(a) &&
+    body(a) >= averageBody(cs, i - 1) &&
+    range(b) > 0 &&
+    body(b) <= 0.1 * range(b) &&
+    bodyTop(b) <= a.open &&
+    bodyBottom(b) >= a.close &&
+    trendInto(cs, i - 1) === 'down'
+  )
+}
+
+// A solid red candle, then a solid green one that gaps up above the red
+// candle's open and never trades back down into it.
+const bullishKicker: Test = (cs, i) => {
+  if (i < 1) return false
+  const [a, b] = [cs[i - 1], cs[i]]
+  const solid = 0.8 * averageBody(cs, i - 1)
+  return isRed(a) && isGreen(b) && body(a) >= solid && body(b) >= solid && b.low >= a.open
+}
+
+// Opens far below a big red candle, then rallies to close right where it closed.
+const bullishCounterattack: Test = (cs, i) => {
+  if (i < 1) return false
+  const [a, b] = [cs[i - 1], cs[i]]
+  return (
+    isRed(a) &&
+    body(a) >= averageBody(cs, i - 1) &&
+    isGreen(b) &&
+    b.open < a.low &&
+    body(b) >= 0.6 * body(a) &&
+    Math.abs(b.close - a.close) <= 0.1 * averageRange(cs, i - 1) &&
+    trendInto(cs, i - 1) === 'down'
+  )
+}
+
+// A gap: the whole candle sits above the one before, leaving an empty space.
+const risingWindow: Test = (cs, i) => i >= 1 && cs[i].low - cs[i - 1].high >= 0.1 * averageRange(cs, i - 1)
+
+// The whole candle fits inside a bigger one before it. Neutral, so no flipped twin.
+const insideBar: Test = (cs, i) => {
+  if (i < 1) return false
+  const [a, b] = [cs[i - 1], cs[i]]
+  return b.high < a.high && b.low > a.low && range(a) >= averageRange(cs, i - 1)
+}
+
 // ---------------------------------------------------------------------------
 // Three-candle tests (a = i - 2, b = i - 1, c = i)
 // ---------------------------------------------------------------------------
@@ -205,6 +266,9 @@ const abandonedBabyBullish: Test = (cs, i) => {
     trendInto(cs, i - 2) === 'down'
   )
 }
+
+// A morning star whose middle candle is a doji.
+const morningDojiStar: Test = (cs, i) => morningStar(cs, i) && body(cs[i - 1]) <= 0.1 * range(cs[i - 1])
 
 const threeWhiteSoldiers: Test = (cs, i) => {
   if (i < 2) return false
@@ -278,6 +342,14 @@ export const CANDLE_PATTERNS: CandlePatternInfo[] = [
     meaning: 'A doji that gapped away from the candles on both sides. A rare, sharp turn from buying to selling.',
     signals: 'Bearish reversal',
     trap: "It's rare on daily stock charts because real gaps on both sides are rare. Don't force it onto a doji that merely sits high." },
+  { key: 'morningDojiStar', name: 'Morning doji star', bias: 'bullish', size: 3, test: morningDojiStar,
+    meaning: 'A big red candle, a doji, then a strong green candle. The doji shows the selling stopped dead before buyers took over.',
+    signals: 'Bullish reversal',
+    trap: "The doji alone proves nothing. It's the strong green candle after it that makes the turn." },
+  { key: 'eveningDojiStar', name: 'Evening doji star', bias: 'bearish', size: 3, test: flipped(morningDojiStar),
+    meaning: 'A big green candle, a doji, then a strong red candle. The doji shows the buying stopped dead before sellers took over.',
+    signals: 'Bearish reversal',
+    trap: "The doji alone proves nothing. It's the strong red candle after it that makes the turn." },
   { key: 'morningStar', name: 'Morning star', bias: 'bullish', size: 3, test: morningStar,
     meaning: 'A big red candle, a small pause candle, then a strong green candle. A three-day turn from selling to buying.',
     signals: 'Bullish reversal',
@@ -312,6 +384,22 @@ export const CANDLE_PATTERNS: CandlePatternInfo[] = [
     trap: "It's strongest at a resistance level. In the middle of a range it means much less." },
 
   // Two candles
+  { key: 'bullishKicker', name: 'Bullish kicker', bias: 'bullish', size: 2, test: bullishKicker,
+    meaning: "A solid red candle, then a solid green one that gaps up above where the red one opened. The mood flipped overnight.",
+    signals: 'Strong bullish reversal',
+    trap: 'It usually comes from news. If the gap fills (price drops back into the red candle), the signal is gone.' },
+  { key: 'bearishKicker', name: 'Bearish kicker', bias: 'bearish', size: 2, test: flipped(bullishKicker),
+    meaning: 'A solid green candle, then a solid red one that gaps down below where the green one opened. The mood flipped overnight.',
+    signals: 'Strong bearish reversal',
+    trap: 'It usually comes from news. If the gap fills (price climbs back into the green candle), the signal is gone.' },
+  { key: 'bullishCounterattack', name: 'Bullish counterattack', bias: 'bullish', size: 2, test: bullishCounterattack,
+    meaning: 'After a big red candle, the next one opens far lower, then rallies all the way back to the same close. Buyers erased the gap.',
+    signals: 'Possible bullish reversal',
+    trap: "It's weaker than a piercing line, because buyers only got back to even. Wait for the next candle to push higher." },
+  { key: 'bearishCounterattack', name: 'Bearish counterattack', bias: 'bearish', size: 2, test: flipped(bullishCounterattack),
+    meaning: 'After a big green candle, the next one opens far higher, then sinks all the way back to the same close. Sellers erased the gap.',
+    signals: 'Possible bearish reversal',
+    trap: "It's weaker than dark cloud cover, because sellers only got back to even. Wait for the next candle to push lower." },
   { key: 'bullishEngulfing', name: 'Bullish engulfing', bias: 'bullish', size: 2, test: bullishEngulfing,
     meaning: "A green candle whose body swallows the previous red one. Buyers overpowered sellers in a single day.",
     signals: 'Bullish reversal',
@@ -328,6 +416,14 @@ export const CANDLE_PATTERNS: CandlePatternInfo[] = [
     meaning: 'Opened above the previous green candle, then sank past the middle of it. Sellers fought back hard.',
     signals: 'Bearish reversal',
     trap: "If the red candle closes above the middle of the green one, it's much weaker. The halfway line is the whole point." },
+  { key: 'bullishHaramiCross', name: 'Bullish harami cross', bias: 'bullish', size: 2, test: bullishHaramiCross,
+    meaning: 'A doji tucked inside the previous big red candle. The selling stopped completely for a day.',
+    signals: 'Early bullish reversal',
+    trap: "A stall isn't a turn. It needs a green candle after it before it means buyers are in charge." },
+  { key: 'bearishHaramiCross', name: 'Bearish harami cross', bias: 'bearish', size: 2, test: flipped(bullishHaramiCross),
+    meaning: 'A doji tucked inside the previous big green candle. The buying stopped completely for a day.',
+    signals: 'Early bearish reversal',
+    trap: "A stall isn't a turn. It needs a red candle after it before it means sellers are in charge." },
   { key: 'bullishHarami', name: 'Bullish harami', bias: 'bullish', size: 2, test: bullishHarami,
     meaning: 'A small green candle tucked inside the previous big red one. The selling is losing force.',
     signals: 'Early bullish reversal',
@@ -345,6 +441,19 @@ export const CANDLE_PATTERNS: CandlePatternInfo[] = [
     signals: 'Bearish reversal',
     trap: 'Matching highs in the middle of nowhere mean little. They matter at a resistance level.' },
 
+  { key: 'risingWindow', name: 'Rising window', bias: 'bullish', size: 2, test: risingWindow,
+    meaning: 'A gap up: the whole candle sits above the one before, leaving an empty space. Buyers were so eager they skipped those prices.',
+    signals: 'Bullish continuation',
+    trap: 'Gaps often get filled later. A gap that fills within a day or two was not a strong one.' },
+  { key: 'fallingWindow', name: 'Falling window', bias: 'bearish', size: 2, test: flipped(risingWindow),
+    meaning: 'A gap down: the whole candle sits below the one before, leaving an empty space. Sellers were so eager they skipped those prices.',
+    signals: 'Bearish continuation',
+    trap: 'Gaps often get filled later. A gap that fills within a day or two was not a strong one.' },
+  { key: 'insideBar', name: 'Inside bar', bias: 'neutral', size: 2, test: insideBar,
+    meaning: "The whole candle, wicks and all, fits inside the bigger one before it. The market is catching its breath.",
+    signals: 'Pause before the next move',
+    trap: "It doesn't say which way. Traders wait for price to break out of the bigger candle's high or low." },
+
   // One candle
   { key: 'bullishMarubozu', name: 'Bullish marubozu', bias: 'bullish', size: 1, test: bullishMarubozu,
     meaning: 'A full green candle with almost no wicks. Buyers were in control from the open to the close.',
@@ -354,6 +463,14 @@ export const CANDLE_PATTERNS: CandlePatternInfo[] = [
     meaning: 'A full red candle with almost no wicks. Sellers were in control from the open to the close.',
     signals: 'Bearish momentum',
     trap: 'A huge candle can wear sellers out too. After a long slide, the next day often gives some back.' },
+  { key: 'bullishBeltHold', name: 'Bullish belt hold', bias: 'bullish', size: 1, test: bullishBeltHold,
+    meaning: 'After a drop, a candle opens at its low and climbs all day. Sellers never got a chance to push it lower.',
+    signals: 'Bullish reversal',
+    trap: "It's common and fairly weak on its own. It means more at a support level." },
+  { key: 'bearishBeltHold', name: 'Bearish belt hold', bias: 'bearish', size: 1, test: flipped(bullishBeltHold),
+    meaning: 'After a rise, a candle opens at its high and sinks all day. Buyers never got a chance to push it higher.',
+    signals: 'Bearish reversal',
+    trap: "It's common and fairly weak on its own. It means more at a resistance level." },
   { key: 'hammer', name: 'Hammer', bias: 'bullish', size: 1, test: hammer,
     meaning: 'A long lower wick after a drop. Sellers pushed price down, then buyers pushed it all the way back up.',
     signals: 'Bullish reversal',
@@ -415,16 +532,23 @@ export function findCandlePatterns(candles: Candle[], endIndexes?: number[]): Ca
 // The patterns right at the decision point. We look for patterns that finish
 // on the very last candle; only if there are none do we look one candle
 // earlier (the newest candle always has the final say). If patterns overlap
-// (a doji inside a morning star), we keep the bigger one.
+// (a doji inside a morning star), resolveOverlaps keeps one.
 export function findSignalPatterns(candles: Candle[]): CandleMatch[] {
   const last = candles.length - 1
   let matches = findCandlePatterns(candles, [last])
   if (matches.length === 0) matches = findCandlePatterns(candles, [last - 1])
-  // Bigger patterns first; ties keep library order.
-  matches.sort((a, b) => b.pattern.size - a.pattern.size)
+  return resolveOverlaps(matches)
+}
+
+// When patterns share candles, keep one: a pattern that points somewhere beats
+// an indecision pattern (a hammer says more than the inside bar it's part of),
+// then the bigger pattern wins. Ties keep library order.
+export function resolveOverlaps(matches: CandleMatch[]): CandleMatch[] {
+  const neutralLast = (m: CandleMatch) => (m.pattern.bias === 'neutral' ? 1 : 0)
+  const sorted = [...matches].sort((a, b) => neutralLast(a) - neutralLast(b) || b.pattern.size - a.pattern.size)
 
   const kept: CandleMatch[] = []
-  for (const m of matches) {
+  for (const m of sorted) {
     const overlapsKept = kept.some((k) => m.start <= k.end && m.end >= k.start)
     if (!overlapsKept) kept.push(m)
   }

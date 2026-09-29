@@ -1,12 +1,15 @@
 import { useState, type ReactNode } from 'react'
 import { STARTING_BALANCE, type Game } from '../game/useGame'
+import type { PracticeProgress } from '../game/usePractice'
 import { computeStats } from '../lib/stats'
+import { DRAWABLE, PRACTICE_CANDLES } from '../lib/practice'
 import { findEntry } from '../lib/library'
 import { EquityChart } from '../components/EquityChart'
 import { formatMoney, formatR, formatSignedMoney, formatSignedPercent } from '../format'
 
 interface Props {
   game: Game
+  practice: PracticeProgress
   onPlay: () => void // go to the Swipe tab
   onLearn: (patternName: string) => void // open a pattern in the Learn tab
 }
@@ -16,7 +19,7 @@ const percent = (share: number | null) => (share === null ? '—' : `${Math.roun
 // Bar color for "how often you get it right": red, amber, then green.
 const scoreColor = (share: number) => (share < 0.4 ? 'bg-down' : share < 0.7 ? 'bg-amber' : 'bg-up')
 
-export function StatsPage({ game, onPlay, onLearn }: Props) {
+export function StatsPage({ game, practice, onPlay, onLearn }: Props) {
   const stats = computeStats(game.history, STARTING_BALANCE)
   const change = ((game.balance - STARTING_BALANCE) / STARTING_BALANCE) * 100
   const [confirmingReset, setConfirmingReset] = useState(false)
@@ -135,6 +138,26 @@ export function StatsPage({ game, onPlay, onLearn }: Props) {
                 })
               )}
             </Section>
+
+            <Section title="Practice">
+              <ScoreRow
+                name="Marking candles"
+                detail={practice.mark.charts ? `${practice.mark.found}/${practice.mark.found + practice.mark.missed} found` : 'none yet'}
+                share={practice.mark.charts ? practice.mark.found / Math.max(1, practice.mark.found + practice.mark.missed) : null}
+              />
+              <ScoreRow
+                name="Candlesticks built"
+                detail={`${practice.built.length}/${PRACTICE_CANDLES.length}`}
+                share={practice.built.length / PRACTICE_CANDLES.length}
+                progress
+              />
+              <ScoreRow
+                name="Chart patterns drawn"
+                detail={`${practice.drawn.length}/${DRAWABLE.length}`}
+                share={practice.drawn.length / DRAWABLE.length}
+                progress
+              />
+            </Section>
           </section>
         </div>
 
@@ -177,8 +200,9 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-// A name, a score, and a bar showing the share you got right.
-function ScoreRow({ name, detail, share, onClick }: { name: string; detail: string; share: number | null; onClick?: () => void }) {
+// A name, a score, and a bar showing the share you got right. `progress`
+// bars are always green: they count what's done, not how well.
+function ScoreRow({ name, detail, share, onClick, progress }: { name: string; detail: string; share: number | null; onClick?: () => void; progress?: boolean }) {
   const content = (
     <>
       <div className="flex items-baseline justify-between gap-3">
@@ -186,7 +210,9 @@ function ScoreRow({ name, detail, share, onClick }: { name: string; detail: stri
         <span className="font-mono text-[13px] text-muted">{detail}</span>
       </div>
       <div className="mt-2 h-1.5 rounded-full bg-neutral-800">
-        {share !== null && <div className={`h-full rounded-full ${scoreColor(share)}`} style={{ width: `${Math.max(4, share * 100)}%` }} />}
+        {share !== null && (progress ? share > 0 : true) && (
+          <div className={`h-full rounded-full ${progress ? 'bg-up' : scoreColor(share)}`} style={{ width: `${Math.max(4, share * 100)}%` }} />
+        )}
       </div>
     </>
   )

@@ -7,16 +7,22 @@ import { SCANNER_MATCHES } from './setups'
 
 // Candles that trace straight lines through [index, price] points, with no
 // randomness: each candle opens at the last close and has small fixed wicks.
-function shape(points: [number, number][]): Candle[] {
+// `gaps` shifts every candle from an index on, leaving a gap before it.
+function shape(points: [number, number][], gaps: [number, number][] = []): Candle[] {
   const closes = pathThrough(points.map(([at, price]) => ({ at, price })), makeRng(1), 0)
-  return closes.map((close, i) => {
+  const candles = closes.map((close, i) => {
     const open = i === 0 ? close : closes[i - 1]
     return { time: i, open, close, high: Math.max(open, close) + 0.3, low: Math.min(open, close) - 0.3 }
   })
+  for (const [at, jump] of gaps) {
+    for (const c of candles.slice(at)) Object.assign(c, { open: c.open + jump, close: c.close + jump, high: c.high + jump, low: c.low + jump })
+  }
+  return candles
 }
 
 // The same shape upside down (a double bottom becomes a double top).
 const mirror = (points: [number, number][]): [number, number][] => points.map(([i, p]) => [i, 200 - p])
+const mirrorGaps = (gaps: [number, number][]): [number, number][] => gaps.map(([i, jump]) => [i, -jump])
 
 const names = (candles: Candle[]) => findChartPatterns(candles).map((m) => m.pattern.name)
 
@@ -27,15 +33,32 @@ const SHAPES: [string, [number, number][]][] = [
   ['Ascending triangle', [[0, 90], [10, 110], [16, 96], [22, 110], [28, 103], [34, 110], [38, 106]]],
   ['Symmetrical triangle', [[0, 105], [10, 120], [16, 90], [22, 114], [28, 97], [34, 109], [38, 104]]],
   ['Rising wedge', [[0, 96], [10, 110], [16, 104], [22, 116], [28, 112], [34, 119], [40, 113.5]]],
-  ['Ascending channel', [[0, 100], [10, 112], [16, 108], [22, 118], [28, 114], [34, 124], [38, 120]]],
-  ['Horizontal channel', [[0, 100], [8, 110], [16, 100.2], [24, 110.3], [32, 100.1], [40, 109.8], [44, 104]]],
+  ['Ascending channel', [[0, 100], [10, 112], [16, 106], [22, 118], [28, 112], [34, 124], [38, 118]]],
+  ['Horizontal channel', [[0, 106], [8, 110], [16, 100.2], [24, 110.3], [32, 100.1], [40, 109.8], [44, 104]]],
   ['Bull flag', [[0, 98], [20, 100], [28, 125], [31, 120], [34, 123], [37, 118], [40, 121], [43, 117], [44, 122]]],
-  ['Bullish pennant', [[0, 98], [20, 100], [28, 125], [31, 116], [34, 123], [37, 118], [40, 122], [42, 119.5], [43, 121], [44, 120.5]]],
+  ['Bullish pennant', [[0, 98], [18, 100], [26, 126], [29, 114], [32, 124], [35, 116.5], [38, 122], [41, 118], [44, 120.5], [46, 119.5], [47, 120.2]]],
   ['Cup and handle', [[0, 120], [4, 121], [10, 110], [16, 103], [22, 101], [28, 103], [34, 110], [40, 120.5], [44, 116], [46, 118]]],
-  ['Higher highs and higher lows', [[0, 100], [6, 108], [10, 104], [16, 112], [20, 108], [26, 116], [30, 112], [34, 115]]],
+  ['Higher highs and higher lows', [[0, 100], [6, 108], [10, 104], [16, 112], [20, 108], [26, 116], [30, 112], [35, 119]]],
   ['Support level', [[0, 110], [8, 100], [16, 110], [24, 100.3], [32, 110], [40, 101.5], [42, 101]]],
   ['Breakout', [[0, 100], [8, 110], [16, 100], [24, 110.2], [32, 101], [40, 109.8], [44, 106], [47, 109], [48, 113]]],
   ['False breakdown', [[0, 110], [8, 100], [16, 110], [24, 100.2], [32, 109], [40, 101], [44, 98], [45, 97.5], [46, 101.5]]],
+  ['Rounding bottom', [[0, 124], [6, 114], [12, 106], [18, 101.5], [24, 100], [30, 101.5], [36, 106], [42, 113], [46, 117]]],
+  ['V-bottom', [[0, 118], [16, 122], [24, 100], [31, 117], [33, 116]]],
+  ['Diamond bottom', [[0, 128], [8, 100], [14, 112], [21, 97], [28, 119], [35, 92], [42, 110], [48, 100], [53, 108], [56, 104]]],
+  ['Broadening formation', [[0, 105], [6, 110], [12, 100], [18, 113], [24, 97], [30, 116], [36, 94], [40, 104]]],
+  ['Descending broadening wedge', [[0, 122], [6, 120], [12, 112], [18, 118], [24, 104], [30, 116], [36, 96], [40, 104]]],
+  ['Bullish rectangle', [[0, 90], [14, 108], [20, 101], [26, 108.2], [32, 101.2], [38, 108], [44, 104]]],
+  ['Rising trendline', [[0, 98], [6, 108], [10, 103], [17, 114], [22, 107], [28, 117], [34, 111], [40, 121], [43, 117]]],
+  ['Bullish change of character', [[0, 118], [5, 124], [11, 110], [17, 118], [23, 104], [30, 121]]],
+  ['Volatility squeeze', [[0, 100], [6, 112], [12, 100], [18, 112], [24, 100], [30, 112], [36, 104], [38, 106], [46, 106]]],
+]
+
+// Gap patterns: [name, points, gaps].
+const GAP_SHAPES: [string, [number, number][], [number, number][]][] = [
+  ['Island bottom', [[0, 120], [20, 104], [26, 103], [33, 106]], [[21, -4], [26, 5]]],
+  ['Exhaustion gap down', [[0, 130], [24, 104], [26, 103], [32, 110]], [[25, -4]]],
+  ['Breakaway gap up', [[0, 95], [8, 100], [12, 103], [16, 100], [20, 103], [24, 100.5], [28, 102.5], [30, 103.5], [34, 106]], [[31, 3]]],
+  ['Runaway gap up', [[0, 90], [30, 120], [36, 127]], [[31, 3]]],
 ]
 
 // Each bullish shape, flipped upside down, should be found as its bearish twin.
@@ -55,6 +78,19 @@ const TWINS: Record<string, string> = {
   'Support level': 'Resistance level',
   Breakout: 'Breakdown',
   'False breakdown': 'False breakout',
+  'Rounding bottom': 'Rounding top',
+  'V-bottom': 'V-top',
+  'Diamond bottom': 'Diamond top',
+  'Broadening formation': 'Broadening formation',
+  'Descending broadening wedge': 'Ascending broadening wedge',
+  'Bullish rectangle': 'Bearish rectangle',
+  'Rising trendline': 'Falling trendline',
+  'Bullish change of character': 'Bearish change of character',
+  'Volatility squeeze': 'Volatility squeeze',
+  'Island bottom': 'Island top',
+  'Exhaustion gap down': 'Exhaustion gap up',
+  'Breakaway gap up': 'Breakaway gap down',
+  'Runaway gap up': 'Runaway gap down',
 }
 
 describe('findChartPatterns on hand-drawn shapes', () => {
@@ -62,6 +98,24 @@ describe('findChartPatterns on hand-drawn shapes', () => {
     it(`finds a ${name.toLowerCase()}`, () => expect(names(shape(points))).toContain(name))
     it(`finds its upside-down twin (${TWINS[name].toLowerCase()})`, () => expect(names(shape(mirror(points)))).toContain(TWINS[name]))
   }
+
+  for (const [name, points, gaps] of GAP_SHAPES) {
+    it(`finds a ${name.toLowerCase()}`, () => expect(names(shape(points, gaps))).toContain(name))
+    it(`finds its upside-down twin (${TWINS[name].toLowerCase()})`, () =>
+      expect(names(shape(mirror(points), mirrorGaps(gaps)))).toContain(TWINS[name]))
+  }
+
+  it('tells a rounded bottom from a V', () => {
+    const v = names(shape([[0, 118], [16, 122], [24, 100], [31, 117], [33, 116]]))
+    expect(v).toContain('V-bottom')
+    expect(v).not.toContain('Rounding bottom')
+    const round = names(shape([[0, 124], [6, 114], [12, 106], [18, 101.5], [24, 100], [30, 101.5], [36, 106], [42, 113], [46, 117]]))
+    expect(round).not.toContain('V-bottom')
+  })
+
+  it('calls a flat range after a rally a rectangle, not just a channel', () => {
+    expect(names(shape([[0, 90], [14, 108], [20, 101], [26, 108.2], [32, 101.2], [38, 108], [44, 104]]))).not.toContain('Horizontal channel')
+  })
 
   it('does not see a head and shoulders in a plain uptrend', () => {
     expect(names(shape([[0, 100], [40, 140]]))).not.toContain('Head and shoulders')
