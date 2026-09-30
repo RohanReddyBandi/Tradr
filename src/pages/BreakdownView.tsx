@@ -8,7 +8,7 @@ import { Markup } from '../components/Markup'
 import { DifficultyBadge } from '../components/DifficultyBadge'
 import { findEntry } from '../lib/library'
 import { COLORS } from '../theme'
-import { formatMoney, formatR, formatSignedMoney, formatSignedPercent } from '../format'
+import { formatMoney, formatSignedMoney, formatSignedPercent } from '../format'
 import type { BestLevels } from '../lib/bestLevels'
 import { riskAndReward, sign, type TradePlan, type TradeResult } from '../lib/trade'
 import type { Candle, Finding } from '../types'
@@ -128,7 +128,11 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
             )}
           </div>
 
-          <ResultCard b={b} movePct={movePct} live={live} liveMissed={liveMissed} />
+          {/* The money first, then how close your stop and target were to the best ones. */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ResultCard b={b} movePct={movePct} live={live} liveMissed={liveMissed} />
+            {b.plan && b.best && <AccuracyCard plan={b.plan} best={b.best} done={done} />}
+          </div>
 
           <div
             className="relative h-[320px] rounded-3xl border border-edge bg-card px-2 pt-3 pb-2 lg:min-h-[360px] lg:flex-1"
@@ -297,62 +301,37 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
   )
 }
 
-// Bar color for an accuracy score: red, amber, then green.
-const accuracyColor = (share: number) => (share < 0.4 ? 'bg-down' : share < 0.7 ? 'bg-amber' : 'bg-up')
-
-// Where the stop and target should have gone (in hindsight), and how close
-// yours were. For a skipped setup, where they should have gone had you traded it.
+// Where the stop and target should have gone (in hindsight), and what that
+// would have made. For a skipped setup, where they should have gone had you traded it.
 function BestLevelsSection({ b, best }: { b: Breakdown; best: BestLevels }) {
   const plan = b.plan ?? b.missed?.plan
   if (!plan) return null
   const long = plan.direction === 'long'
-  const risked = formatMoney(riskAndReward(plan).risk)
-  const bestResult = `${formatSignedMoney(best.result.pnl)} (${formatR(best.result.r)})`
+  const position = formatMoney(plan.size)
   const extreme = long ? 'high' : 'low'
   const dip = long ? 'dip' : 'bounce'
+  const made = best.result.pnl >= 0 ? `made ${formatMoney(best.result.pnl)}` : `lost ${formatMoney(-best.result.pnl)}`
 
   let text: string
   if (!best.movedYourWay) {
-    text = `Price never really moved your way before breaking the logical stop at ${best.logicalStop.toFixed(2)}, just past the recent swing. The best you could do was a small, planned loss there: ${bestResult} risking ${risked}. Sometimes the best trade is a quick exit.`
+    text = `Price never really moved your way before breaking the logical stop at ${best.logicalStop.toFixed(2)}, just past the recent swing. The best you could do was a small, planned loss there: with the same ${position} position, a stop at ${best.stop.toFixed(2)} would have ${made}. Sometimes the best trade is a quick exit.`
   } else {
-    text = `In hindsight, the best take profit was ${best.target.toFixed(2)}, just inside the ${extreme} of ${best.peak.toFixed(2)} on day ${best.peakDay}, and the best stop was ${best.stop.toFixed(2)}, just past the deepest ${dip} on the way there. Risking the same ${risked}, those levels would have made ${bestResult}.`
+    text = `In hindsight, the best take profit was ${best.target.toFixed(2)}, just inside the ${extreme} of ${best.peak.toFixed(2)} on day ${best.peakDay}, and the best stop was ${best.stop.toFixed(2)}, just past the deepest ${dip} on the way there. With the same ${position} position, those levels would have ${made}.`
   }
 
   if (!b.plan || !b.result) {
     return (
       <p className="mt-2 text-[16px] leading-relaxed text-neutral-200">
-        Had you traded it with the usual 1% risk: {text.charAt(0).toLowerCase()}
+        Had you traded it: {text.charAt(0).toLowerCase()}
         {text.slice(1)}
       </p>
     )
   }
-
-  const rows = [
-    { name: 'Stop loss', yours: b.plan.stop, best: best.stop, accuracy: best.stopAccuracy },
-    { name: 'Take profit', yours: b.plan.target, best: best.target, accuracy: best.targetAccuracy },
-  ]
+  const yours = b.result.pnl >= 0 ? `made ${formatMoney(b.result.pnl)}` : `lost ${formatMoney(-b.result.pnl)}`
   return (
     <>
-      <div className="mt-3 flex flex-col gap-4">
-        {rows.map((row) => (
-          <div key={row.name}>
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-[15px]">{row.name}</span>
-              <span className="font-mono text-[13px] text-muted">
-                yours {row.yours.toFixed(2)} · best {row.best.toFixed(2)}
-                <span className="ml-2 text-[15px] text-neutral-100">{row.accuracy === null ? '—' : `${Math.round(row.accuracy * 100)}%`}</span>
-              </span>
-            </div>
-            <div className="mt-2 h-1.5 rounded-full bg-neutral-800">
-              {row.accuracy !== null && (
-                <div className={`h-full rounded-full ${accuracyColor(row.accuracy)}`} style={{ width: `${Math.max(4, row.accuracy * 100)}%` }} />
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-      <p className="mt-4 text-[16px] leading-relaxed text-neutral-200">
-        {text} Yours made {formatSignedMoney(b.result.pnl)} ({formatR(b.result.r)}).
+      <p className="mt-2 text-[16px] leading-relaxed text-neutral-200">
+        {text} Yours {yours}.
       </p>
       <p className="mt-2 text-sm leading-relaxed text-muted">
         Hindsight is perfect and nobody hits these exactly. Accuracy compares distances from your entry: 100% is the same distance as the
@@ -434,39 +413,92 @@ function liveResult(plan: TradePlan, result: TradeResult, future: Candle[], reve
   return { pnl, r: risk > 0 ? pnl / risk : 0, closed: false }
 }
 
-const EXIT_LABEL = { stop: 'Stopped out', target: 'Target hit', end: `Held ${FUTURE_CANDLES} days` }
+// How the trade ended, for the line under the money.
+function exitLine(result: TradeResult) {
+  const day = result.exit.index + 1
+  if (result.exit.reason === 'stop') return `Stopped out on day ${day}`
+  if (result.exit.reason === 'target') return `Target hit on day ${day}`
+  return `Held all ${FUTURE_CANDLES} days`
+}
 
 function ResultCard({ b, movePct, live, liveMissed }: { b: Breakdown; movePct: number; live: Live | null; liveMissed: Live | null }) {
   // Skipped: show how far price moved, and what trading the setup would have done.
   if (!b.plan || !b.result || !live) {
     return (
-      <div className="flex items-end justify-between rounded-3xl border border-edge bg-card px-5 py-4">
-        <div>
-          <div className="text-[13px] font-medium text-soft">Skipped · no position</div>
-          <div className="mt-1 font-mono text-[32px] leading-none font-medium text-soft tabular-nums">{formatSignedPercent(movePct)}</div>
+      <div className="rounded-3xl border border-edge bg-card px-5 py-4 sm:col-span-2">
+        <div className="text-[13px] font-medium text-soft">You skipped</div>
+        <div className="mt-2 font-mono text-[40px] leading-none font-medium text-soft tabular-nums">$0.00</div>
+        <div className="mt-3 text-[13px] text-muted">
+          Price moved {formatSignedPercent(movePct)}
+          {liveMissed && (
+            <>
+              {' '}· trading the setup would have made{' '}
+              <span className={`font-mono ${liveMissed.pnl >= 0 ? 'text-up' : 'text-down'}`}>{formatSignedMoney(liveMissed.pnl)}</span>
+            </>
+          )}
         </div>
-        {liveMissed && (
-          <div className="text-right">
-            <div className="text-[13px] text-muted">Trading the setup</div>
-            <div className="mt-1 font-mono text-lg tabular-nums">{formatSignedMoney(liveMissed.pnl)}</div>
-          </div>
-        )}
       </div>
     )
   }
 
+  // Traded: the money you made or lost, in big type.
   const tone = live.pnl > 0 ? 'text-up' : live.pnl < 0 ? 'text-down' : 'text-soft'
   const side = b.plan.direction === 'long' ? 'Long' : 'Short'
+  const verdict = !live.closed ? 'So far' : live.pnl > 0.004 ? 'You made' : live.pnl < -0.004 ? 'You lost' : 'You broke even'
+  const amount = live.closed ? formatMoney(Math.abs(live.pnl)) : formatSignedMoney(live.pnl)
   return (
-    <div className="flex items-end justify-between rounded-3xl border border-edge bg-card px-5 py-4">
-      <div>
-        <div className={`text-[13px] font-medium ${tone}`}>{live.closed ? `${EXIT_LABEL[b.result.exit.reason]} · ${side}` : `In the trade · ${side}`}</div>
-        <div className={`mt-1 font-mono text-[32px] leading-none font-medium tabular-nums ${tone}`}>{formatSignedMoney(live.pnl)}</div>
+    <div className="rounded-3xl border border-edge bg-card px-5 py-4">
+      <div className={`text-[13px] font-medium ${live.closed ? tone : 'text-soft'}`}>{verdict}</div>
+      <div className={`mt-2 font-mono text-[40px] leading-none font-medium tabular-nums ${tone}`}>{amount}</div>
+      <div className="mt-3 text-[13px] text-muted">
+        {live.closed ? exitLine(b.result) : 'In the trade'} · {side} · {formatMoney(b.plan.size)} position
       </div>
-      <div className="text-right">
-        <div className="text-[13px] text-muted">R-multiple</div>
-        <div className="mt-1 font-mono text-lg tabular-nums">{formatR(live.r)}</div>
-      </div>
+    </div>
+  )
+}
+
+// Colors for an accuracy score: red, amber, then green.
+const accuracyTone = (share: number) => (share < 0.4 ? 'text-down' : share < 0.7 ? 'text-amber' : 'text-up')
+const accuracyColor = (share: number) => (share < 0.4 ? 'bg-down' : share < 0.7 ? 'bg-amber' : 'bg-up')
+const accuracyCard = (share: number) =>
+  share < 0.4 ? 'border-down/30 bg-down/[0.06]' : share < 0.7 ? 'border-amber/30 bg-amber/[0.06]' : 'border-up/30 bg-up/[0.06]'
+
+// How close your stop and target were to the best ones, in big type.
+function AccuracyCard({ plan, best, done }: { plan: TradePlan; best: BestLevels; done: boolean }) {
+  const rows = [
+    { name: 'Stop loss', yours: plan.stop, best: best.stop, accuracy: best.stopAccuracy },
+    { name: 'Take profit', yours: plan.target, best: best.target, accuracy: best.targetAccuracy },
+  ]
+  const scores = rows.flatMap((r) => (r.accuracy === null ? [] : [r.accuracy]))
+  const overall = scores.reduce((a, b) => a + b, 0) / scores.length
+  return (
+    <div className={`rounded-3xl border px-5 py-4 transition-colors ${done ? accuracyCard(overall) : 'border-edge bg-card'}`}>
+      <div className="text-[13px] font-medium text-soft">Stop and target accuracy</div>
+      {done ? (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className={`mt-2 font-mono text-[40px] leading-none font-medium tabular-nums ${accuracyTone(overall)}`}>{Math.round(overall * 100)}%</div>
+          <div className="mt-3 flex flex-col gap-3">
+            {rows.map((row) => (
+              <div key={row.name}>
+                <div className="flex items-baseline justify-between gap-2 text-[13px]">
+                  <span className="text-soft">{row.name}</span>
+                  <span className="font-mono text-neutral-100">{row.accuracy === null ? '—' : `${Math.round(row.accuracy * 100)}%`}</span>
+                </div>
+                <div className="mt-1.5 h-1.5 rounded-full bg-neutral-800">
+                  {row.accuracy !== null && (
+                    <div className={`h-full rounded-full ${accuracyColor(row.accuracy)}`} style={{ width: `${Math.max(4, row.accuracy * 100)}%` }} />
+                  )}
+                </div>
+                <div className="mt-1 font-mono text-[12px] text-muted">
+                  yours {row.yours.toFixed(2)} · best {row.best.toFixed(2)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      ) : (
+        <p className="mt-3 text-[13px] leading-relaxed text-muted">Your score shows up when the replay ends, next to the best stop and target lines.</p>
+      )}
     </div>
   )
 }

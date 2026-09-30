@@ -3,7 +3,7 @@ import type { ChartCard, Decision } from '../types'
 import { makeDealer } from '../lib/generator'
 import { drawRealCard, loadRealWindows, loadedRealWindows } from '../lib/realCards'
 import { analyze, type Breakdown } from '../lib/analyze'
-import type { Direction, TradePlan } from '../lib/trade'
+import { DEFAULT_POSITION_SHARE, type Direction, type TradePlan } from '../lib/trade'
 import type { TradeRecord } from '../lib/stats'
 
 export const STARTING_BALANCE = 10_000
@@ -88,9 +88,12 @@ export function useGame() {
     })
   }, [])
 
+  // The usual position size, used as the default and to show what skips missed.
+  const stake = Math.round(balance * DEFAULT_POSITION_SHARE * 100) / 100
+
   // Grade the card, open its Breakdown, and move the deck along.
   function finish(card: ChartCard, decision: Decision, plan: TradePlan | null) {
-    setReview({ card, breakdown: analyze(card, decision, plan, balance), settled: false })
+    setReview({ card, breakdown: analyze(card, decision, plan, stake), settled: false })
     setDeck((cards) => [...cards.slice(1), nextCard(cards[cards.length - 1].number + 1)])
   }
 

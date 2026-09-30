@@ -89,7 +89,12 @@ export function StatsPage({ game, practice, onPlay, onLearn }: Props) {
           <section className="mt-5 flex flex-col gap-6 lg:mt-5">
             <div className="grid grid-cols-2 gap-3">
               <Tile label="Win rate" value={percent(stats.winRate)} note={`of ${stats.trades} trade${stats.trades === 1 ? '' : 's'}`} />
-              <Tile label="Avg R" value={stats.averageR === null ? '—' : formatR(stats.averageR)} note="per trade" />
+              <Tile
+                label="Accuracy"
+                value={percent(stats.accuracy)}
+                note="stop and target vs best"
+                tone={stats.accuracy === null ? '' : stats.accuracy < 0.4 ? 'text-down' : stats.accuracy < 0.7 ? 'text-amber' : 'text-up'}
+              />
               <Tile label="Good reads" value={percent(stats.decisionAccuracy)} note="decision accuracy" tone="text-up" />
               <Tile
                 label="Skipped winners"
@@ -99,8 +104,9 @@ export function StatsPage({ game, practice, onPlay, onLearn }: Props) {
               />
             </div>
 
-            <div className="grid grid-cols-3 divide-x divide-edge rounded-2xl border border-edge bg-card py-3 text-center">
+            <div className="grid grid-cols-4 divide-x divide-edge rounded-2xl border border-edge bg-card py-3 text-center">
               <Small label="Cards played" value={String(stats.cards)} />
+              <Small label="Avg R" value={stats.averageR === null ? '—' : formatR(stats.averageR)} />
               <Small label="Best trade" value={stats.best ? formatSignedMoney(stats.best.pnl) : '—'} tone={stats.best && stats.best.pnl > 0 ? 'text-up' : ''} />
               <Small label="Worst trade" value={stats.worst ? formatSignedMoney(stats.worst.pnl) : '—'} tone={stats.worst && stats.worst.pnl < 0 ? 'text-down' : ''} />
             </div>

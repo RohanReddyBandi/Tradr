@@ -43,19 +43,8 @@ export function averageTrueRange(candles: Candle[], count = 14) {
 
 const cents = (n: number) => Math.round(n * 100) / 100
 
-// Until you change it, each trade risks this share of your balance: if the
-// stop is hit, you lose 1%. The position size follows from that (see
-// sizeForRisk), which is how most traders size positions.
-export const DEFAULT_RISK_SHARE = 0.01
-
-// How many dollars to put in so that hitting the stop loses `riskDollars`.
-// A closer stop means a bigger position for the same risk. Never more than
-// `cap` (your balance: there's no borrowing here).
-export function sizeForRisk(entry: number, stop: number, riskDollars: number, cap = Infinity): number {
-  const perShare = Math.abs(entry - stop) // dollars lost per share if the stop is hit
-  if (!(perShare > 0) || !(riskDollars > 0)) return 0
-  return cents(Math.min(cap, (riskDollars / perShare) * entry))
-}
+// Until you change it, a trade uses this share of your balance.
+export const DEFAULT_POSITION_SHARE = 0.1
 
 // A sensible starting point for the setup screen: stop 2 ATR away and target
 // 4 ATR away (1 : 2 risk/reward). These are deliberately generic; the
@@ -71,12 +60,6 @@ export function defaultPlan(candles: Candle[], direction: Direction, size: numbe
     stop: cents(entry - s * 2 * atr),
     target: cents(entry + s * 4 * atr),
   }
-}
-
-// The starting plan, sized so the stop risks `riskShare` of your balance.
-export function riskSizedPlan(candles: Candle[], direction: Direction, balance: number, riskShare = DEFAULT_RISK_SHARE): TradePlan {
-  const plan = defaultPlan(candles, direction, 0)
-  return { ...plan, size: sizeForRisk(plan.entry, plan.stop, balance * riskShare, balance) }
 }
 
 // Dollars lost if the stop is hit, and dollars won if the target is hit.

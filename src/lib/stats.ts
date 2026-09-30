@@ -69,6 +69,8 @@ export function computeStats(history: TradeRecord[], startingBalance: number) {
     equity,
     stopAccuracy: average(trades.map((r) => r.stopAccuracy)),
     targetAccuracy: average(trades.map((r) => r.targetAccuracy)),
+    // Each trade's score is the average of its stop and target scores (as on the Breakdown).
+    accuracy: average(trades.map((r) => average([r.stopAccuracy, r.targetAccuracy]))),
     cards: history.length,
     trades: trades.length,
     winRate: share(trades.filter((r) => r.outcome === 'win').length, trades.length),

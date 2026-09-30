@@ -3,7 +3,7 @@ import { findSignalPatterns } from './candlePatterns'
 import { findChartPatterns, pickChartPatterns, toFinding } from './chartPatterns'
 import { SCANNER_MATCHES } from './setups'
 import { FUTURE_CANDLES } from './generator'
-import { riskSizedPlan, simulateTrade, type TradePlan, type TradeResult } from './trade'
+import { defaultPlan, simulateTrade, type TradePlan, type TradeResult } from './trade'
 import { bestLevels, type BestLevels } from './bestLevels'
 import { reviewStopAndTarget, type StopTargetReview } from './riskReview'
 import { formatMoney } from '../format'
@@ -55,9 +55,9 @@ function outcomeOf(r: number): Outcome {
   return r > 0 ? 'win' : 'loss'
 }
 
-// `plan` is your trade (null for a skip); `balance` sizes the trade a
-// skipped setup would have been (risking the usual 1% of it).
-export function analyze(card: ChartCard, decision: Decision, plan: TradePlan | null, balance: number): Breakdown {
+// `plan` is your trade (null for a skip); `stake` is the usual position size,
+// used to show what trading a skipped setup would have done.
+export function analyze(card: ChartCard, decision: Decision, plan: TradePlan | null, stake: number): Breakdown {
   const { setup } = card
   const bias = setup.bias
   const entry = card.candles[card.candles.length - 1].close
@@ -67,7 +67,7 @@ export function analyze(card: ChartCard, decision: Decision, plan: TradePlan | n
   const result = plan ? simulateTrade(plan, card.future) : null
   let missed: Breakdown['missed'] = null
   if (!plan && bias !== 'neutral') {
-    const missedPlan = riskSizedPlan(card.candles, bias === 'bullish' ? 'long' : 'short', balance)
+    const missedPlan = defaultPlan(card.candles, bias === 'bullish' ? 'long' : 'short', stake)
     missed = { plan: missedPlan, result: simulateTrade(missedPlan, card.future) }
   }
   const outcome = result ? outcomeOf(result.r) : missed ? outcomeOf(missed.result.r) : 'flat'
@@ -108,7 +108,7 @@ export function analyze(card: ChartCard, decision: Decision, plan: TradePlan | n
 
   const risk = plan ? reviewStopAndTarget(card.candles, plan) : null
   const tradeToJudge = plan ?? missed?.plan ?? null
-  const best = tradeToJudge ? bestLevels(card.candles, card.future, tradeToJudge, balance) : null
+  const best = tradeToJudge ? bestLevels(card.candles, card.future, tradeToJudge) : null
 
   // --- The scanner: the same candles, read with no answer key ----------------
   // On generated charts we can check it against the built-in pattern. Real

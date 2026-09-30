@@ -1,5 +1,5 @@
 import type { Candle } from '../types'
-import { averageTrueRange, riskAndReward, sign, simulateTrade, sizeForRisk, type TradePlan, type TradeResult } from './trade'
+import { averageTrueRange, sign, simulateTrade, type TradePlan, type TradeResult } from './trade'
 
 // After the replay: where the stop loss and take profit SHOULD have gone, and
 // how close yours were. This uses hindsight (the replay candles), so nobody
@@ -24,7 +24,7 @@ export interface BestLevels {
   movedYourWay: boolean // did price go your way by at least half an ATR?
   stopAccuracy: number // 0 to 1: how close your stop's distance was to the best one's
   targetAccuracy: number | null // 0 to 1, or null when there was no move to target
-  result: TradeResult // what the best levels would have done, risking the same dollars
+  result: TradeResult // what the best levels would have made, with the same position size
 }
 
 const SWING_LOOKBACK = 10
@@ -38,7 +38,7 @@ function accuracy(yours: number, best: number, entry: number) {
   return Math.min(a, b) / Math.max(a, b)
 }
 
-export function bestLevels(candles: Candle[], future: Candle[], plan: TradePlan, balance = Infinity): BestLevels {
+export function bestLevels(candles: Candle[], future: Candle[], plan: TradePlan): BestLevels {
   const s = sign(plan.direction) // +1 long, -1 short
   const entry = plan.entry
   const atr = averageTrueRange(candles)
@@ -83,10 +83,8 @@ export function bestLevels(candles: Candle[], future: Candle[], plan: TradePlan,
   stop = Math.round(stop * 100) / 100
   target = Math.round(target * 100) / 100
 
-  // Same dollars at risk as your trade, so the two results compare fairly.
-  const { risk } = riskAndReward(plan)
-  const size = sizeForRisk(entry, stop, risk, balance)
-  const result = simulateTrade({ ...plan, stop, target, size }, future)
+  // Same position size as your trade, so the two results compare fairly.
+  const result = simulateTrade({ ...plan, stop, target }, future)
 
   return {
     stop,

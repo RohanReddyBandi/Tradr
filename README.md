@@ -38,10 +38,10 @@ The deployed site uses generated charts only, since the real-chart data isn't in
 
 - Drag the card right to **buy**, left to **sell**, up to **skip**
 - Or use the Sell / Skip / Buy buttons
-- After a buy or sell, set how much to risk (1% of your balance by default), your stop
-  loss, and your take profit: drag the lines on the chart or type prices, then confirm.
-  The position size follows from the risk and the stop: move the stop closer and you
-  can buy more for the same risk, which is how most traders size positions
+- After a buy or sell, set your position size (10% of your balance by default), stop
+  loss, and take profit: drag the lines on the chart or type prices, then confirm
+- After the replay, the Breakdown shows the money you made or lost, and an accuracy
+  score: how close your stop and target were to the best ones in hindsight
 - On desktop: arrow keys (→ buy, ← sell, ↑ skip), Escape to back out of a trade,
   Enter for the next card
 
@@ -108,7 +108,7 @@ separately and isn't cleared by Reset.
 
 1. ✅ Swipe card UI
 2. ✅ Synthetic chart generator: 33 setups in a bullish and a bearish version, plus 3 no-edge charts (chop, a volatility squeeze, a broadening formation): 69 kinds of card in all
-3. ✅ Trade setup panel (risk-based position size, draggable stop loss and take profit, live risk/reward) and a replay that closes at the stop or target
+3. ✅ Trade setup panel (position size, draggable stop loss and take profit, live risk/reward) and a replay that closes at the stop or target
 4. ✅ Breakdown: replay, markup drawn on the chart, decision graded separately from the outcome, and the best stop and target in hindsight with an accuracy score for yours
 5. ✅ Pattern detection: 44 candlestick patterns and 58 chart patterns (including gaps, islands, diamonds, rounding and V bottoms, broadening formations, rectangles, trendlines and trendline breaks, climaxes, Fibonacci pullbacks, and changes of character), found from the raw candles alone
 6. ✅ Stats (equity curve, win rate, average R, decision accuracy, skip stats, accuracy by difficulty and by pattern), a Learn tab with every pattern, and saving to localStorage

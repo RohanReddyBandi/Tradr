@@ -57,6 +57,18 @@ describe('computeStats', () => {
     expect(stats.patternsMissed[0].correct).toBe(0) // Hammer or Double bottom: never right
   })
 
+  it('averages stop and target accuracy, ignoring trades saved before it existed', () => {
+    const scored = [
+      record({ stopAccuracy: 0.5, targetAccuracy: 1 }),
+      record({ stopAccuracy: 0.9, targetAccuracy: null }), // no move to target: the stop alone counts
+      record({}),
+    ]
+    const s = computeStats(scored, 10_000)
+    expect(s.stopAccuracy).toBeCloseTo(0.7)
+    expect(s.targetAccuracy).toBeCloseTo(1)
+    expect(s.accuracy).toBeCloseTo((0.75 + 0.9) / 2)
+  })
+
   it('handles an empty history', () => {
     const empty = computeStats([], 10_000)
     expect(empty.equity).toEqual([10_000])
