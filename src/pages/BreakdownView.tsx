@@ -128,11 +128,7 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
             )}
           </div>
 
-          {/* The money first, then how close your stop and target were to the best ones. */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <ResultCard b={b} movePct={movePct} live={live} liveMissed={liveMissed} />
-            {b.plan && b.best && <AccuracyCard plan={b.plan} best={b.best} done={done} />}
-          </div>
+          <ResultCard b={b} movePct={movePct} live={live} liveMissed={liveMissed} />
 
           <div
             className="relative h-[320px] rounded-3xl border border-edge bg-card px-2 pt-3 pb-2 lg:min-h-[360px] lg:flex-1"
@@ -204,6 +200,12 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
                   )}
                 </p>
               </Reveal>
+
+              {b.plan && b.best && (
+                <Reveal>
+                  <AccuracyCard plan={b.plan} best={b.best} />
+                </Reveal>
+              )}
 
               <Reveal>
                 <SectionTitle>What the chart was saying</SectionTitle>
@@ -425,7 +427,7 @@ function ResultCard({ b, movePct, live, liveMissed }: { b: Breakdown; movePct: n
   // Skipped: show how far price moved, and what trading the setup would have done.
   if (!b.plan || !b.result || !live) {
     return (
-      <div className="rounded-3xl border border-edge bg-card px-5 py-4 sm:col-span-2">
+      <div className="rounded-3xl border border-edge bg-card px-5 py-4">
         <div className="text-[13px] font-medium text-soft">You skipped</div>
         <div className="mt-2 font-mono text-[40px] leading-none font-medium text-soft tabular-nums">$0.00</div>
         <div className="mt-3 text-[13px] text-muted">
@@ -463,8 +465,9 @@ const accuracyColor = (share: number) => (share < 0.4 ? 'bg-down' : share < 0.7 
 const accuracyCard = (share: number) =>
   share < 0.4 ? 'border-down/30 bg-down/[0.06]' : share < 0.7 ? 'border-amber/30 bg-amber/[0.06]' : 'border-up/30 bg-up/[0.06]'
 
-// How close your stop and target were to the best ones, in big type.
-function AccuracyCard({ plan, best, done }: { plan: TradePlan; best: BestLevels; done: boolean }) {
+// How close your stop and target were to the best ones: one score, then a
+// bar for each level with your price next to the best one.
+function AccuracyCard({ plan, best }: { plan: TradePlan; best: BestLevels }) {
   const rows = [
     { name: 'Stop loss', yours: plan.stop, best: best.stop, accuracy: best.stopAccuracy },
     { name: 'Take profit', yours: plan.target, best: best.target, accuracy: best.targetAccuracy },
@@ -472,33 +475,29 @@ function AccuracyCard({ plan, best, done }: { plan: TradePlan; best: BestLevels;
   const scores = rows.flatMap((r) => (r.accuracy === null ? [] : [r.accuracy]))
   const overall = scores.reduce((a, b) => a + b, 0) / scores.length
   return (
-    <div className={`rounded-3xl border px-5 py-4 transition-colors ${done ? accuracyCard(overall) : 'border-edge bg-card'}`}>
-      <div className="text-[13px] font-medium text-soft">Stop and target accuracy</div>
-      {done ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className={`mt-2 font-mono text-[40px] leading-none font-medium tabular-nums ${accuracyTone(overall)}`}>{Math.round(overall * 100)}%</div>
-          <div className="mt-3 flex flex-col gap-3">
-            {rows.map((row) => (
-              <div key={row.name}>
-                <div className="flex items-baseline justify-between gap-2 text-[13px]">
-                  <span className="text-soft">{row.name}</span>
-                  <span className="font-mono text-neutral-100">{row.accuracy === null ? '—' : `${Math.round(row.accuracy * 100)}%`}</span>
-                </div>
-                <div className="mt-1.5 h-1.5 rounded-full bg-neutral-800">
-                  {row.accuracy !== null && (
-                    <div className={`h-full rounded-full ${accuracyColor(row.accuracy)}`} style={{ width: `${Math.max(4, row.accuracy * 100)}%` }} />
-                  )}
-                </div>
-                <div className="mt-1 font-mono text-[12px] text-muted">
-                  yours {row.yours.toFixed(2)} · best {row.best.toFixed(2)}
-                </div>
-              </div>
-            ))}
+    <div className={`rounded-2xl border px-4 py-3.5 ${accuracyCard(overall)}`}>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-[11px] tracking-[0.08em] text-muted uppercase">Stop and target accuracy</span>
+        <span className={`font-mono text-[22px] leading-none font-medium tabular-nums ${accuracyTone(overall)}`}>{Math.round(overall * 100)}%</span>
+      </div>
+      <div className="mt-3 flex flex-col gap-2.5">
+        {rows.map((row) => (
+          <div key={row.name}>
+            <div className="flex items-baseline justify-between gap-2 text-[13px]">
+              <span className="text-soft">{row.name}</span>
+              <span className="font-mono text-[12px] text-muted">
+                {row.yours.toFixed(2)} → best {row.best.toFixed(2)}
+                <span className="ml-2 text-[13px] text-neutral-100">{row.accuracy === null ? '—' : `${Math.round(row.accuracy * 100)}%`}</span>
+              </span>
+            </div>
+            <div className="mt-1.5 h-1 rounded-full bg-neutral-800">
+              {row.accuracy !== null && (
+                <div className={`h-full rounded-full ${accuracyColor(row.accuracy)}`} style={{ width: `${Math.max(4, row.accuracy * 100)}%` }} />
+              )}
+            </div>
           </div>
-        </motion.div>
-      ) : (
-        <p className="mt-3 text-[13px] leading-relaxed text-muted">Your score shows up when the replay ends, next to the best stop and target lines.</p>
-      )}
+        ))}
+      </div>
     </div>
   )
 }
