@@ -8,6 +8,7 @@ import { StatsPage } from './pages/StatsPage'
 import { PracticePage, type PracticeFocus, type PracticeMode } from './pages/PracticePage'
 import { useGame } from './game/useGame'
 import { usePractice } from './game/usePractice'
+import { useLearn } from './game/useLearn'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('swipe')
@@ -15,6 +16,7 @@ export default function App() {
   const [practiceFocus, setPracticeFocus] = useState<PracticeFocus | null>(null) // a drill to open in Practice
   const game = useGame()
   const practice = usePractice()
+  const learn = useLearn()
 
   function changeTab(next: Tab) {
     setLearnFocus(null)
@@ -46,7 +48,15 @@ export default function App() {
             {tab === 'swipe' && <SwipePage game={game} onLearn={openLearn} />}
             {/* The key makes Learn start fresh (and jump) each time it opens on a pattern. */}
             {tab === 'learn' && (
-              <LearnPage key={learnFocus ?? 'all'} history={game.history} focus={learnFocus} progress={practice.progress} onPractice={openPractice} />
+              <LearnPage
+                key={learnFocus ?? 'all'}
+                history={game.history}
+                focus={learnFocus}
+                progress={practice.progress}
+                learn={learn}
+                onPractice={openPractice}
+                onLearn={openLearn}
+              />
             )}
             {tab === 'practice' && (
               <PracticePage
@@ -56,7 +66,7 @@ export default function App() {
                 onLearn={openLearn}
               />
             )}
-            {tab === 'stats' && <StatsPage game={game} practice={practice.progress} onPlay={() => changeTab('swipe')} onLearn={openLearn} />}
+            {tab === 'stats' && <StatsPage game={game} practice={practice.progress} learn={learn.progress} onPlay={() => changeTab('swipe')} onLearn={openLearn} />}
           </main>
           {/* The trade setup is a focused step with its own back button, so the phone tabs step aside. */}
           {!(tab === 'swipe' && game.pending) && <TabBar active={tab} onChange={changeTab} />}

@@ -7,6 +7,8 @@ export interface Scale {
   x: (index: number) => number
   y: (price: number) => number
   slot: number // horizontal room per candle, in pixels
+  toPrice: (y: number) => number // the other way: pixels down to a price
+  toIndex: (x: number) => number // and pixels across to a candle position (can be in between)
 }
 
 // A price-to-pixel scale that fits the candles (and any extra prices) into a box.
@@ -27,6 +29,8 @@ export function priceScale(count: number, width: number, height: number, min: nu
     slot,
     x: (index) => pad + (index + 0.5) * slot,
     y: (price) => pad + ((max - price) / (max - min)) * (height - pad * 2),
+    toPrice: (py) => max - ((py - pad) / (height - pad * 2)) * (max - min),
+    toIndex: (px) => (px - pad) / slot - 0.5,
   }
 }
 

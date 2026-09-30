@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { STARTING_BALANCE, type Game } from '../game/useGame'
 import type { PracticeProgress } from '../game/usePractice'
+import type { LearnProgress } from '../game/useLearn'
+import { LESSON_IDS } from '../lib/lessons'
 import { computeStats } from '../lib/stats'
 import { DRAWABLE, PRACTICE_CANDLES } from '../lib/practice'
 import { findEntry } from '../lib/library'
@@ -10,6 +12,7 @@ import { formatMoney, formatR, formatSignedMoney, formatSignedPercent } from '..
 interface Props {
   game: Game
   practice: PracticeProgress
+  learn: LearnProgress
   onPlay: () => void // go to the Swipe tab
   onLearn: (patternName: string) => void // open a pattern in the Learn tab
 }
@@ -19,7 +22,7 @@ const percent = (share: number | null) => (share === null ? '—' : `${Math.roun
 // Bar color for "how often you get it right": red, amber, then green.
 const scoreColor = (share: number) => (share < 0.4 ? 'bg-down' : share < 0.7 ? 'bg-amber' : 'bg-up')
 
-export function StatsPage({ game, practice, onPlay, onLearn }: Props) {
+export function StatsPage({ game, practice, learn, onPlay, onLearn }: Props) {
   const stats = computeStats(game.history, STARTING_BALANCE)
   const change = ((game.balance - STARTING_BALANCE) / STARTING_BALANCE) * 100
   const [confirmingReset, setConfirmingReset] = useState(false)
@@ -131,6 +134,19 @@ export function StatsPage({ game, practice, onPlay, onLearn }: Props) {
               </p>
             </Section>
 
+            <Section title="Chart markup">
+              <ScoreRow
+                name="Lines, levels, and names"
+                detail={stats.markup ? `${stats.markup.right}/${stats.markup.total} right` : 'nothing drawn yet'}
+                share={stats.markup ? stats.markup.right / stats.markup.total : null}
+              />
+              <p className="text-sm leading-relaxed text-muted">
+                {stats.markup
+                  ? `Across the ${stats.markup.trades} trade${stats.markup.trades === 1 ? '' : 's'} you marked up before entering.`
+                  : 'Draw trendlines and levels, or name the candles, on the trade setup chart, and the Breakdown grades them.'}
+              </p>
+            </Section>
+
             <Section title="Good reads by difficulty">
               {stats.difficulty.map((d) => (
                 <ScoreRow
@@ -159,6 +175,20 @@ export function StatsPage({ game, practice, onPlay, onLearn }: Props) {
                   )
                 })
               )}
+            </Section>
+
+            <Section title="Learn">
+              <ScoreRow
+                name="Lessons finished"
+                detail={`${learn.lessons.filter((id) => LESSON_IDS.includes(id)).length}/${LESSON_IDS.length}`}
+                share={learn.lessons.filter((id) => LESSON_IDS.includes(id)).length / LESSON_IDS.length}
+                progress
+              />
+              <ScoreRow
+                name="Quiz"
+                detail={learn.quiz.answered ? `${learn.quiz.correct}/${learn.quiz.answered} right · best streak ${learn.quiz.best}` : 'not tried yet'}
+                share={learn.quiz.answered ? learn.quiz.correct / learn.quiz.answered : null}
+              />
             </Section>
 
             <Section title="Practice">

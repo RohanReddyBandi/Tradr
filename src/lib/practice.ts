@@ -148,6 +148,22 @@ export function gradeMarks(chart: MarkChart, marks: Mark[]): MarkResult {
 // Build a candlestick pattern
 // ---------------------------------------------------------------------------
 
+// A candle's four prices, which the candle editors let you drag.
+export type Handle = 'high' | 'low' | 'open' | 'close'
+
+// Move one price, keeping the candle valid: the wicks always reach at least
+// as far as the body.
+export function adjustCandle(c: Candle, which: Handle, price: number): Candle {
+  const next = { ...c, [which]: price }
+  if (which === 'high') next.high = Math.max(price, c.open, c.close)
+  else if (which === 'low') next.low = Math.min(price, c.open, c.close)
+  else {
+    next.high = Math.max(c.high, next.open, next.close)
+    next.low = Math.min(c.low, next.open, next.close)
+  }
+  return next
+}
+
 export interface BuildTask {
   key: string
   context: Candle[] // the candles before yours (the move the pattern needs)

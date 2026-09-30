@@ -69,6 +69,12 @@ describe('computeStats', () => {
     expect(s.accuracy).toBeCloseTo((0.75 + 0.9) / 2)
   })
 
+  it('adds up chart markup over the trades that had some', () => {
+    const marked = [record({ markup: { right: 2, total: 3 } }), record({ markup: null }), record({ markup: { right: 1, total: 1 } }), record({})]
+    expect(computeStats(marked, 10_000).markup).toEqual({ trades: 2, right: 3, total: 4 })
+    expect(computeStats([record({})], 10_000).markup).toBeNull()
+  })
+
   it('handles an empty history', () => {
     const empty = computeStats([], 10_000)
     expect(empty.equity).toEqual([10_000])

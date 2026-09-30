@@ -66,8 +66,15 @@ export function computeStats(history: TradeRecord[], startingBalance: number) {
     return known.length ? known.reduce((a, b) => a + b, 0) / known.length : null
   }
 
+  // Everything you drew on trade setup charts, and how much of it was right.
+  const marked = trades.filter((r) => r.markup && r.markup.total > 0)
+  const markup = marked.length
+    ? { trades: marked.length, right: marked.reduce((n, r) => n + r.markup!.right, 0), total: marked.reduce((n, r) => n + r.markup!.total, 0) }
+    : null
+
   return {
     equity,
+    markup,
     stopAccuracy: average(trades.map((r) => r.stopAccuracy)),
     targetAccuracy: average(trades.map((r) => r.targetAccuracy)),
     // Each trade's score is the average of its stop and target scores (as on the Breakdown).

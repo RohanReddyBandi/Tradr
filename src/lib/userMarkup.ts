@@ -42,7 +42,7 @@ const NEAR = 0.35 // a wick this close to the line touches it
 const PIERCE = 0.6 // a wick may poke this far through and still count as a touch
 const THROUGH = 0.3 // a close this far past the line is on the wrong side
 const RECENT = 4 // closes through the line in the last few candles are a break, not a flaw
-const SAME_TOUCH = 2 // touching candles this close together are one touch
+const SAME_TOUCH = 3 // touching candles this close together are one touch (the same dip)
 
 export interface LineReading {
   role: 'support' | 'resistance' // is price mostly above it (a floor) or below it (a ceiling)?

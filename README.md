@@ -8,6 +8,9 @@ There's also a **Practice** tab with no money involved: mark the candlestick pat
 hidden in a chart, build a named candlestick by dragging candles into shape, or draw a
 chart pattern with your finger and see whether the scanner recognises it.
 
+And a **Learn** tab: eight short interactive lessons, a pattern quiz, and every
+pattern Tradr knows (see "Learn" below).
+
 ## Run it
 
 ```bash
@@ -118,11 +121,35 @@ Three drills, all graded by the same detectors that grade your swipes:
 Every pattern in the Learn tab has a **Build it** or **Draw it** button that opens the drill
 on that pattern.
 
+## Learn
+
+- **Lessons**: eight short lessons, in order, each built around something to try:
+  1. Reading a candle: drag a candle's open, high, low, and close; make a green one, a
+     red one, a doji, and a hammer
+  2. Trends: call five charts uptrend, downtrend, or range, then see the swings labelled
+     HH, HL, LH, LL
+  3. Support and resistance: drag a line to the floor of a range (it counts the touches),
+     then play it forward and watch the old floor turn into a ceiling
+  4. Trendlines: draw one under an uptrend, graded like your trade markup
+  5. Location beats the candle: the same pattern twice, at a level and in the middle of
+     nowhere; pick the one to trade
+  6. Stops, targets, and risk : reward: fix a bad plan by dragging its stop and target,
+     with the win rate it needs and the same review the Breakdown gives
+  7. Position size and the maths of losing: the gain it takes to undo a loss, and a
+     losing streak at different amounts of risk
+  8. Good decisions still lose: run 50 trades at a win rate and risk : reward you choose,
+     then run the same odds again
+- **Patterns**: every chart and candlestick pattern, searchable and filterable. Each card
+  has a "What happens next?" button that plays a typical follow-through.
+- **Quiz**: name that pattern, four choices. Every chart is drawn fresh and checked by
+  the detectors, and any other answer the detectors also see is left out of the choices.
+  Keys 1 to 4 answer, Enter moves on.
+
 ## Saving
 
 Your balance and history are saved in this browser (localStorage), so they survive a
-reload. Reset on the Stats page starts over at $10,000. Practice progress is saved
-separately and isn't cleared by Reset.
+reload. Reset on the Stats page starts over at $10,000. Practice and Learn progress are
+saved separately and aren't cleared by Reset.
 
 ## Build status
 
@@ -134,6 +161,8 @@ separately and isn't cleared by Reset.
 6. ✅ Stats (equity curve, win rate, average R, decision accuracy, skip stats, accuracy by difficulty and by pattern), a Learn tab with every pattern, and saving to localStorage
 7. ✅ Real historical data: 270 real 90-day windows from 45 stocks and funds, mixed in with generated charts
 8. ✅ Practice tab: mark the candles, build a candlestick, draw a chart pattern
+9. ✅ Chart markup on the trade setup screen (trendlines, levels, named candles and patterns), graded in the Breakdown
+10. ✅ Learn tab: eight interactive lessons, a pattern quiz, and pattern cards that play forward
 
 ## How a card works
 
@@ -192,7 +221,11 @@ separately and isn't cleared by Reset.
 | `scripts/fetch-real-charts.mjs` | Downloads the real price history (`npm run fetch-charts`) |
 | `src/lib/library.ts`, `src/lib/examples.ts` | The Learn tab's pattern list and example charts |
 | `src/pages/StatsPage.tsx`, `src/components/EquityChart.tsx` | Stats page and the equity curve |
-| `src/pages/LearnPage.tsx`, `src/components/MiniChart.tsx` | Learn tab and its small example charts |
+| `src/pages/LearnPage.tsx`, `src/pages/learn/` | Learn tab: lessons, the pattern library, and the quiz |
+| `src/pages/learn/lessons/` | One widget per lesson |
+| `src/lib/lessons.ts`, `src/lib/quiz.ts` | The lessons' charts and arithmetic, and quiz questions |
+| `src/game/useLearn.ts` | Lesson and quiz progress, saved in the browser |
+| `src/components/SvgChart.tsx`, `src/components/MiniChart.tsx` | Light SVG candlestick charts for lessons and pattern cards |
 | `src/lib/practice.ts` | The Practice drills' logic: planting patterns, grading marks, turning a drawing into candles |
 | `src/pages/PracticePage.tsx`, `src/pages/practice/` | The Practice tab and its three drills |
 | `src/game/usePractice.ts` | Practice progress, saved in the browser |

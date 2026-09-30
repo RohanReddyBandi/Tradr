@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import type { Candle } from '../../types'
-import { PRACTICE_CANDLES, buildTask, readBuild } from '../../lib/practice'
+import { PRACTICE_CANDLES, adjustCandle as adjust, buildTask, readBuild, type Handle } from '../../lib/practice'
 import { GROUPS, LIBRARY, entryByKey } from '../../lib/library'
 import { candleExample } from '../../lib/examples'
 import { CandleLayer } from '../../components/ChartLayers'
@@ -65,22 +65,8 @@ export function BuildDrill({ built, focus, onBuilt }: Props) {
 // The editor
 // ---------------------------------------------------------------------------
 
-type Handle = 'high' | 'low' | 'open' | 'close'
 const PAD = 12
 const LABELS = 26 // room under the candles for "Before" / "Your candles"
-
-// Move one price, keeping the candle valid: the wicks always reach at least
-// as far as the body.
-function adjust(c: Candle, which: Handle, price: number): Candle {
-  const next = { ...c, [which]: price }
-  if (which === 'high') next.high = Math.max(price, c.open, c.close)
-  else if (which === 'low') next.low = Math.min(price, c.open, c.close)
-  else {
-    next.high = Math.max(c.high, next.open, next.close)
-    next.low = Math.min(c.low, next.open, next.close)
-  }
-  return next
-}
 
 function BuildEditor({ target, onBuilt, onNext }: { target: string; onBuilt: (key: string) => void; onNext: () => void }) {
   const task = useMemo(() => buildTask(target), [target])
