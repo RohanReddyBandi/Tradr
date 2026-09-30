@@ -3,6 +3,19 @@ import { makeRng, type Rng } from './random'
 import { SETUPS, type Blueprint, type SetupRecipe, type Waypoint } from './setups'
 import { averageTrueRange } from './trade'
 import {
+  BACKSTORIES,
+  CANDLE_STYLES,
+  CHART_LENGTHS,
+  candleStyle,
+  cycler,
+  looksFor,
+  plantPatterns,
+  tellBackstory,
+  type Backstory,
+  type CandleStyle,
+  type Turn,
+} from './variety'
+import {
   DECOY_SIGNALS,
   SIGNAL_RECIPES,
   STRONG_SIGNALS,
@@ -11,7 +24,7 @@ import {
   type SignalKey,
 } from './signalCandles'
 
-export const VISIBLE_CANDLES = 60 // what you see before deciding
+export const VISIBLE_CANDLES = 60 // what you see before deciding (real charts; generated ones vary, see variety.ts)
 export const FUTURE_CANDLES = 30 // what plays out after
 
 // How often a setup plays out the way it points (on average across all
@@ -58,16 +71,17 @@ const START_TIME = Date.UTC(2024, 0, 2) / 1000
 // Between two waypoints price moves in a straight line plus a random wiggle.
 // The wiggle is a random walk bent so it starts and ends at zero (a
 // "Brownian bridge"), which is how the path lands exactly on each waypoint.
-export function pathThrough(waypoints: Waypoint[], rng: Rng, noise = 1): number[] {
+// `profile` scales the wiggle candle by candle (volatility that builds or fades).
+export function pathThrough(waypoints: Waypoint[], rng: Rng, noise = 1, profile: (i: number) => number = () => 1): number[] {
   const closes: number[] = []
   for (let w = 0; w < waypoints.length - 1; w++) {
     const a = waypoints[w]
     const b = waypoints[w + 1]
     const steps = b.at - a.at
-    const wiggle = b.calm ? noise * 0.2 : noise // quiet stretches barely wiggle
+    const wiggle = b.calm ? noise * 0.2 : noise * (b.hush ?? 1) // quiet stretches barely wiggle
 
     const walk = [0]
-    for (let k = 1; k <= steps; k++) walk.push(walk[k - 1] + rng.noise() * R * 0.9 * wiggle)
+    for (let k = 1; k <= steps; k++) walk.push(walk[k - 1] + rng.noise() * R * 0.9 * wiggle * profile(a.at + k))
 
     for (let k = w === 0 ? 0 : 1; k <= steps; k++) {
       const straight = a.price + ((b.price - a.price) * k) / steps
@@ -81,10 +95,21 @@ export function pathThrough(waypoints: Waypoint[], rng: Rng, noise = 1): number[
 // Turn closing prices into full candles: each opens near the previous close,
 // and gets random wicks above and below its body. `quiet` candles get tiny
 // wicks; a candle in `gaps` opens near its own close, after an overnight jump.
-function barsFromCloses(closes: number[], firstOpen: number, rng: Rng, wicks = 1, quiet: boolean[] = [], gaps = new Set<number>()): Bar[] {
+// `jitter` is how far opens stray from the last close; `profile` scales each
+// candle's size (volatility that builds or fades across the chart).
+function barsFromCloses(
+  closes: number[],
+  firstOpen: number,
+  rng: Rng,
+  wicks = 1,
+  quiet: number[] = [], // how big each candle is (1 normal, 0.3 in a calm stretch)
+  gaps = new Set<number>(),
+  jitter = 1,
+  profile: (i: number) => number = () => 1,
+): Bar[] {
   return closes.map((close, i) => {
-    const size = quiet[i] ? 0.3 : 1
-    let open = (i === 0 ? firstOpen : closes[i - 1]) + rng.noise() * R * 0.08 * size
+    const size = (quiet[i] ?? 1) * profile(i)
+    let open = (i === 0 ? firstOpen : closes[i - 1]) + rng.noise() * R * 0.08 * size * jitter
     if (gaps.has(i)) open = close + rng.noise() * R * 0.3
     const upper = R * (0.06 + rng.next() * 0.32) * wicks * size
     const lower = R * (0.06 + rng.next() * 0.32) * wicks * size
@@ -102,13 +127,14 @@ function openGaps(bars: Bar[], gaps: Set<number>) {
   }
 }
 
-// Which candles are quiet (inside a `calm` stretch) and which open after a gap.
+// How big each candle is (small inside a `calm` or `hush` stretch), and which open after a gap.
 function quietAndGaps(waypoints: Waypoint[], count: number) {
-  const quiet: boolean[] = Array(count).fill(false)
+  const quiet: number[] = Array(count).fill(1)
   const gaps = new Set<number>()
   waypoints.forEach((w, k) => {
     if (w.gap) gaps.add(w.at)
-    if (w.calm && k > 0) for (let i = waypoints[k - 1].at + 1; i <= w.at; i++) quiet[i] = true
+    const size = w.calm ? 0.3 : w.hush
+    if (size !== undefined && k > 0) for (let i = waypoints[k - 1].at + 1; i <= w.at; i++) quiet[i] = size
   })
   return { quiet, gaps }
 }
@@ -230,28 +256,25 @@ function pickSetup(rng: Rng, difficulty: Difficulty): SetupRecipe {
   return rng.pick(SETUPS)
 }
 
-// Vary the lead-in: most of the time the stretch before the pattern's first
-// key point gets an extra swing, so a setup doesn't always arrive the same way.
-// The swing stays between the two prices, so it can't poke past the pattern
-// (a new low under a support level would change what the chart says).
-function varyLeadIn(waypoints: Waypoint[], rng: Rng): Waypoint[] {
-  const [first, next] = waypoints
-  if (!next || next.at < 14 || rng.chance(0.3)) return waypoints
-  const low = Math.min(first.price, next.price) + 0.5 * R
-  const high = Math.max(first.price, next.price) - 0.5 * R
-  if (high - low < R) return waypoints // too flat a lead-in to swing around in
-  const at = Math.round(next.at * rng.range(0.35, 0.65))
-  const straight = first.price + ((next.price - first.price) * at) / next.at
-  const swing = (rng.chance(0.5) ? 1 : -1) * R * rng.range(1.5, 3.5)
-  return [first, { at, price: Math.min(high, Math.max(low, straight + swing)) }, ...waypoints.slice(1)]
-}
-
 // Which setup to build, and which way. Normally picked at random; the
 // dealer (below) passes one in so the deck doesn't repeat itself.
 export interface SetupTicket {
   key: string
   bias: Bias
 }
+
+// How a card looks, apart from its setup: its length, the backstory before
+// the pattern, and the style of its candles (see variety.ts). Picked at
+// random unless the dealer passes them in.
+export interface Look {
+  length: number
+  backstory: Backstory
+  style: CandleStyle
+}
+
+// A blueprint that fits the chart: waypoints in order, from the first candle to `end`.
+const blueprintFits = (waypoints: Waypoint[], end: number) =>
+  waypoints[0].at === 0 && waypoints[waypoints.length - 1].at === end && waypoints.every((w, k) => k === 0 || w.at > waypoints[k - 1].at)
 
 // Easy cards get a big, obvious signal candle; hard cards get a quiet one,
 // as long as the setup allows it.
@@ -266,15 +289,30 @@ const flipBar = (b: Bar): Bar => ({ open: -b.open, close: -b.close, high: -b.low
 
 // `difficulty` and `ticket` can be forced (the dealer and tests do); otherwise
 // they're picked at random.
-export function generateCard(number: number, seed: number = randomSeed(), forcedDifficulty?: Difficulty, ticket?: SetupTicket): ChartCard {
+export function generateCard(
+  number: number,
+  seed: number = randomSeed(),
+  forcedDifficulty?: Difficulty,
+  ticket?: SetupTicket,
+  look: Partial<Look> = {},
+): ChartCard {
   const rng = makeRng(seed)
   const difficulty = forcedDifficulty ?? pickDifficulty(rng)
   const recipe = ticket ? SETUPS.find((s) => s.key === ticket.key)! : pickSetup(rng, difficulty)
   const bias: Bias = recipe.neutral ? 'neutral' : ticket ? ticket.bias : rng.chance(0.5) ? 'bullish' : 'bearish'
 
-  // Each card also gets its own look: calmer or jumpier price, shorter or longer wicks.
+  // Each card also gets its own look: its length, the backstory before the
+  // pattern, and the style of its candles, on top of a little extra
+  // randomness in how much price wiggles and how long the wicks are.
+  // A few setups only read right in some looks; anything else is swapped for one that works.
+  const allowed = looksFor(recipe.key, difficulty)
+  const choose = <T,>(wanted: T | undefined, options: readonly T[]) => (wanted !== undefined && options.includes(wanted) ? wanted : rng.pick(options))
+  let visible = choose(look.length, allowed.lengths)
+  const backstory = choose(look.backstory, allowed.backstories)
+  const style = candleStyle(choose(look.style, allowed.styles))
   const base = DIFFICULTY[difficulty]
-  const settings = { ...base, noise: base.noise * rng.range(0.85, 1.2), wicks: base.wicks * rng.range(0.75, 1.35) }
+  const settings = { ...base, noise: base.noise * rng.range(0.85, 1.2) * style.noise, wicks: base.wicks * rng.range(0.75, 1.35) * style.wicks }
+  const profile = (i: number) => style.profile(i, visible)
 
   // 1. Pick the candlestick pattern that finishes the setup. We need its
   //    length first so the price path stops just before it. Hard choppy
@@ -284,25 +322,37 @@ export function generateCard(number: number, seed: number = randomSeed(), forced
   const signalKey = decoy ? rng.pick(DECOY_SIGNALS) : pickSignal(rng, recipe.signals, difficulty)
   let signal = SIGNAL_RECIPES[signalKey](R, rng)
   if (decoy && rng.chance(0.5)) signal = signal.map(flipBar)
-  const end = VISIBLE_CANDLES - signal.length - 1
+  let end = visible - signal.length - 1
 
   // 2. Draw the setup. Touch waypoints aim the close a bit inside the line,
   //    then applyTouches puts the wick exactly on it. Hard cards skip that
   //    step and nudge each touch a little, so the lines only roughly fit.
-  const blueprint = recipe.build(rng, end, R)
-  const aimed = varyLeadIn(
-    blueprint.waypoints.map((w) => {
-      let price = w.touch === 'high' ? w.price - 0.3 * R : w.touch === 'low' ? w.price + 0.3 * R : w.price
-      if (w.touch && !settings.exactTouches) price += rng.range(-0.4, 0.4) * R
-      return { ...w, price }
-    }),
-    rng,
-  )
-  const closes = pathThrough(aimed, rng, settings.noise)
-  const { quiet, gaps } = quietAndGaps(blueprint.waypoints, closes.length)
-  const bars = barsFromCloses(closes, closes[0], rng, settings.wicks, quiet, gaps)
+  //    (A setup too long for a short chart gets the standard 60 candles.)
+  let blueprint = recipe.build(rng, end, R)
+  if (!blueprintFits(blueprint.waypoints, end)) {
+    visible = VISIBLE_CANDLES
+    end = visible - signal.length - 1
+    blueprint = recipe.build(rng, end, R)
+  }
+  const aimed = blueprint.waypoints.map((w) => {
+    let price = w.touch === 'high' ? w.price - 0.3 * R : w.touch === 'low' ? w.price + 0.3 * R : w.price
+    if (w.touch && !settings.exactTouches) price += rng.range(-0.4, 0.4) * R
+    return { ...w, price }
+  })
+  const story = tellBackstory(backstory, aimed, rng, R)
+  const closes = pathThrough(story.waypoints, rng, settings.noise, profile)
+  const { quiet, gaps } = quietAndGaps(story.waypoints, closes.length)
+  const bars = barsFromCloses(closes, closes[0], rng, settings.wicks, quiet, gaps, style.jitter, profile)
   if (settings.exactTouches) applyTouches(bars, blueprint.waypoints)
   openGaps(bars, gaps)
+  // Most charts also get a candlestick pattern or two at earlier turning
+  // points, well before the decision: in the backstory, or on the pattern's
+  // own earlier swing points (a hammer on a double bottom's first low).
+  const swings: Turn[] = blueprint.waypoints
+    .filter((w) => w.touch && w.at <= end - 12)
+    .map((w) => ({ at: w.at, kind: w.touch === 'low' ? 'bottom' : 'top', room: Infinity, exact: true }))
+  const keepAsIs = new Set([...gaps, ...quiet.flatMap((q, i) => (q < 0.5 ? [i] : []))])
+  if (rng.chance(0.85)) plantPatterns(bars, [...story.turns, ...swings], rng.int(1, 3), rng, R, end - 10, keepAsIs)
 
   // 3. Add the signal candles, shifted to start from the last close. They're
   //    drawn for a normal chart; after a very fast move (or a very quiet
@@ -347,7 +397,7 @@ export function generateCard(number: number, seed: number = randomSeed(), forced
     difficulty,
     difficultyNotes: difficulty === 'hard' ? hardNotes(recipe.key, name, signalKey, decoy) : [],
     candles: bars.map(toCandle),
-    future: futureBars.map((b, k) => toCandle(b, VISIBLE_CANDLES + k)),
+    future: futureBars.map((b, k) => toCandle(b, visible + k)),
     setup: {
       key: recipe.key,
       name,
@@ -384,6 +434,11 @@ function freshBag(random: () => number): SetupTicket[] {
 // the next ticket that fits when the bag still has one.
 export function makeDealer(random: () => number = Math.random) {
   let bag: SetupTicket[] = []
+  // Looks come from bags too, so two cards in a row rarely share a length,
+  // backstory, or candle style.
+  const nextLength = cycler(CHART_LENGTHS, random)
+  const nextBackstory = cycler(BACKSTORIES, random)
+  const nextStyle = cycler(CANDLE_STYLES, random)
   return function deal(number: number): ChartCard {
     if (bag.length === 0) bag = freshBag(random)
     const roll = random()
@@ -401,7 +456,8 @@ export function makeDealer(random: () => number = Math.random) {
     }
     const [ticket] = bag.splice(pick, 1)
     const fits = difficulty !== 'easy' || EASY_SETUPS.includes(ticket.key)
-    return generateCard(number, Math.floor(random() * 2 ** 32), fits ? difficulty : 'medium', ticket)
+    const look = { length: nextLength(), backstory: nextBackstory(), style: nextStyle() }
+    return generateCard(number, Math.floor(random() * 2 ** 32), fits ? difficulty : 'medium', ticket, look)
   }
 }
 

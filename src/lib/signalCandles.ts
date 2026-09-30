@@ -36,52 +36,58 @@ const invertedHammer: Recipe = (R, rng) => {
   return [bar(open, open + b, b * rng.range(2.6, 3.4), 0.02 * R)]
 }
 
-const dragonflyDoji: Recipe = (R) => {
+const dragonflyDoji: Recipe = (R, rng) => {
   const open = -0.05 * R
-  return [bar(open, open + 0.01 * R, 0.02 * R, 1.4 * R)]
+  return [bar(open, open + 0.01 * R, 0.02 * R, rng.range(1.15, 1.7) * R)]
 }
 
-const bullishEngulfing: Recipe = (R) => {
-  const red = bar(0.05 * R, -0.55 * R, 0.1 * R, 0.1 * R)
-  const green = bar(red.close - 0.05 * R, red.open + 0.35 * R, 0.08 * R, 0.12 * R)
+const bullishEngulfing: Recipe = (R, rng) => {
+  const red = bar(rng.range(0.02, 0.1) * R, -rng.range(0.45, 0.75) * R, rng.range(0.05, 0.18) * R, rng.range(0.05, 0.15) * R)
+  const green = bar(red.close - rng.range(0.03, 0.12) * R, red.open + rng.range(0.2, 0.6) * R, rng.range(0.04, 0.14) * R, rng.range(0.06, 0.18) * R)
   return [red, green]
 }
 
 const threeOutsideUp: Recipe = (R, rng) => {
   const [red, green] = bullishEngulfing(R, rng)
-  return [red, green, bar(green.close - 0.05 * R, green.close + 0.6 * R, 0.08 * R, 0.06 * R)]
+  return [red, green, bar(green.close - rng.range(0.02, 0.1) * R, green.close + rng.range(0.4, 0.8) * R, rng.range(0.04, 0.12) * R, 0.06 * R)]
 }
 
-const piercingLine: Recipe = (R) => {
-  const red = bar(0.05 * R, -0.95 * R, 0.1 * R, 0.1 * R)
-  const green = bar(red.close - 0.2 * R, red.close + 0.65 * R, 0.1 * R, 0.1 * R)
+const piercingLine: Recipe = (R, rng) => {
+  const redBody = rng.range(0.85, 1.25) * R
+  const red = bar(0.05 * R, 0.05 * R - redBody, rng.range(0.05, 0.15) * R, rng.range(0.05, 0.15) * R)
+  // Opens below the red close, closes past its middle but short of its open.
+  const green = bar(red.close - rng.range(0.12, 0.3) * R, red.close + redBody * rng.range(0.58, 0.85), 0.1 * R, rng.range(0.05, 0.15) * R)
   return [red, green]
 }
 
-const tweezerBottom: Recipe = (R) => {
-  const red = bar(0, -0.6 * R, 0.1 * R, 0.3 * R)
+const tweezerBottom: Recipe = (R, rng) => {
+  const red = bar(0, -rng.range(0.45, 0.8) * R, 0.1 * R, rng.range(0.2, 0.4) * R)
   const open = red.close + 0.05 * R
   // The green candle's wick reaches down to exactly the same low.
-  const green = bar(open, open + 0.5 * R, 0.1 * R, open - red.low)
+  const green = bar(open, open + rng.range(0.35, 0.7) * R, rng.range(0.05, 0.15) * R, open - red.low)
   return [red, green]
 }
 
-const bullishHarami: Recipe = (R) => {
-  const red = bar(0.05 * R, -1.15 * R, 0.1 * R, 0.1 * R)
-  const green = bar(red.close + 0.3 * R, red.close + 0.7 * R, 0.1 * R, 0.1 * R)
+const bullishHarami: Recipe = (R, rng) => {
+  const redBody = rng.range(1.05, 1.45) * R
+  const red = bar(0.05 * R, 0.05 * R - redBody, rng.range(0.05, 0.15) * R, rng.range(0.05, 0.15) * R)
+  // A small green body tucked inside the red one.
+  const open = red.close + redBody * rng.range(0.12, 0.35)
+  const green = bar(open, open + redBody * rng.range(0.2, 0.42), 0.1 * R, 0.1 * R)
   return [red, green]
 }
 
 const threeInsideUp: Recipe = (R, rng) => {
   const [red, green] = bullishHarami(R, rng)
-  return [red, green, bar(green.close, red.open + 0.25 * R, 0.1 * R, 0.05 * R)]
+  return [red, green, bar(green.close, red.open + rng.range(0.12, 0.45) * R, 0.1 * R, 0.05 * R)]
 }
 
 const morningStar: Recipe = (R, rng) => {
-  const red = bar(0, -1.1 * R, 0.1 * R, 0.1 * R)
-  const starOpen = red.close - 0.15 * R
-  const star = bar(starOpen, starOpen + (rng.chance(0.5) ? 0.08 : -0.08) * R, 0.15 * R, 0.15 * R)
-  const green = bar(star.close + 0.05 * R, red.close + 0.8 * R, 0.08 * R, 0.08 * R)
+  const redBody = rng.range(0.95, 1.35) * R
+  const red = bar(0, -redBody, 0.1 * R, 0.1 * R)
+  const starOpen = red.close - rng.range(0.1, 0.25) * R
+  const star = bar(starOpen, starOpen + (rng.chance(0.5) ? 1 : -1) * rng.range(0.05, 0.14) * R, rng.range(0.1, 0.25) * R, rng.range(0.1, 0.25) * R)
+  const green = bar(star.close + 0.05 * R, red.close + redBody * rng.range(0.62, 0.95), 0.08 * R, 0.08 * R)
   return [red, star, green]
 }
 
@@ -98,11 +104,15 @@ const bullishMarubozu: Recipe = (R, rng) => {
   return [bar(open, open + 1.5 * R * rng.range(0.95, 1.15), 0.03 * R, 0.03 * R)]
 }
 
-const threeWhiteSoldiers: Recipe = (R) => {
-  const first = bar(0, 0.8 * R, 0.08 * R, 0.06 * R)
-  const second = bar(first.close - 0.3 * R, first.close + 0.6 * R, 0.08 * R, 0.05 * R)
-  const third = bar(second.close - 0.3 * R, second.close + 0.6 * R, 0.08 * R, 0.05 * R)
-  return [first, second, third]
+const threeWhiteSoldiers: Recipe = (R, rng) => {
+  const first = bar(0, rng.range(0.7, 1) * R, 0.08 * R, 0.06 * R)
+  // Each opens inside the one before and closes higher.
+  const next = (prev: Bar) => {
+    const open = prev.close - (prev.close - prev.open) * rng.range(0.15, 0.45)
+    return bar(open, prev.close + rng.range(0.4, 0.75) * R, rng.range(0.03, 0.1) * R, 0.05 * R)
+  }
+  const second = next(first)
+  return [first, second, next(second)]
 }
 
 const risingThreeMethods: Recipe = (R) => {
@@ -127,10 +137,10 @@ const bullishHaramiCross: Recipe = (R) => {
   return [red, bar(dojiOpen, dojiOpen + 0.01 * R, 0.2 * R, 0.2 * R)]
 }
 
-const bullishKicker: Recipe = (R) => {
-  const red = bar(0, -0.9 * R, 0.05 * R, 0.05 * R)
-  const open = red.open + 0.25 * R // gaps up above where the red candle opened
-  return [red, bar(open, open + 1.2 * R, 0.08 * R, 0.03 * R)]
+const bullishKicker: Recipe = (R, rng) => {
+  const red = bar(0, -rng.range(0.75, 1.1) * R, 0.05 * R, 0.05 * R)
+  const open = red.open + rng.range(0.15, 0.4) * R // gaps up above where the red candle opened
+  return [red, bar(open, open + rng.range(0.95, 1.4) * R, 0.08 * R, 0.03 * R)]
 }
 
 const bullishCounterattack: Recipe = (R) => {
@@ -151,9 +161,9 @@ const gapUp: Recipe = (R, rng) => {
   return [bar(open, open + rng.range(0.6, 0.9) * R, 0.1 * R, 0.05 * R)]
 }
 
-const bullishBeltHold: Recipe = (R) => {
-  const open = -0.65 * R // gaps down, then climbs all day from the open
-  return [bar(open, open + 1.0 * R, 0.25 * R, 0)]
+const bullishBeltHold: Recipe = (R, rng) => {
+  const open = -rng.range(0.5, 0.8) * R // gaps down, then climbs all day from the open
+  return [bar(open, open + rng.range(1.05, 1.35) * R, rng.range(0.1, 0.3) * R, 0)]
 }
 
 // Indecision candles for charts with no setup.
@@ -161,9 +171,12 @@ const insideBar: Recipe = (R) => {
   const big = bar(0, 0.9 * R, 0.2 * R, 0.2 * R)
   return [big, bar(0.6 * R, 0.4 * R, 0.1 * R, 0.1 * R)]
 }
-const doji: Recipe = (R, rng) => [bar(0, (rng.chance(0.5) ? 0.02 : -0.02) * R, 0.4 * R, 0.4 * R)]
-const spinningTop: Recipe = (R, rng) => [bar(0, (rng.chance(0.5) ? 0.2 : -0.2) * R, 0.3 * R, 0.3 * R)]
-const longLeggedDoji: Recipe = (R) => [bar(0, 0.02 * R, 0.7 * R, 0.7 * R)]
+const doji: Recipe = (R, rng) => [bar(0, (rng.chance(0.5) ? 0.02 : -0.02) * R, rng.range(0.25, 0.55) * R, rng.range(0.25, 0.55) * R)]
+const spinningTop: Recipe = (R, rng) => {
+  const b = rng.range(0.15, 0.25) * R
+  return [bar(0, rng.chance(0.5) ? b : -b, b * rng.range(1.2, 2), b * rng.range(1.2, 2))]
+}
+const longLeggedDoji: Recipe = (R, rng) => [bar(0, 0.02 * R, rng.range(0.6, 0.9) * R, rng.range(0.6, 0.9) * R)]
 
 export const SIGNAL_RECIPES = {
   hammer,
@@ -246,3 +259,62 @@ export const SUBTLE_SIGNALS: SignalKey[] = [
 // Hard cards sometimes end with one of these in the middle of a choppy range:
 // a strong-looking candle with nothing behind it.
 export const DECOY_SIGNALS: SignalKey[] = ['bullishMarubozu', 'bullishEngulfing']
+
+// ---------------------------------------------------------------------------
+// Every candlestick pattern in the library, and the recipe that draws it.
+// Bearish patterns are a bullish recipe drawn upside down.
+// ---------------------------------------------------------------------------
+
+export type LeadIn = 'down' | 'up' | 'flat'
+export interface CandleRecipe {
+  recipe: SignalKey
+  flipped?: boolean // build the bullish version, then turn it upside down
+  lead?: LeadIn // the move into the pattern (down by default)
+}
+
+export const CANDLE_RECIPES: Record<string, CandleRecipe> = {
+  hammer: { recipe: 'hammer' },
+  shootingStar: { recipe: 'hammer', flipped: true },
+  invertedHammer: { recipe: 'invertedHammer' },
+  hangingMan: { recipe: 'invertedHammer', flipped: true },
+  dragonflyDoji: { recipe: 'dragonflyDoji' },
+  gravestoneDoji: { recipe: 'dragonflyDoji', flipped: true },
+  longLeggedDoji: { recipe: 'longLeggedDoji', lead: 'flat' },
+  doji: { recipe: 'doji', lead: 'flat' },
+  spinningTop: { recipe: 'spinningTop', lead: 'flat' },
+  bullishMarubozu: { recipe: 'bullishMarubozu', lead: 'flat' },
+  bearishMarubozu: { recipe: 'bullishMarubozu', lead: 'flat', flipped: true },
+  bullishEngulfing: { recipe: 'bullishEngulfing' },
+  bearishEngulfing: { recipe: 'bullishEngulfing', flipped: true },
+  piercingLine: { recipe: 'piercingLine' },
+  darkCloudCover: { recipe: 'piercingLine', flipped: true },
+  bullishHarami: { recipe: 'bullishHarami' },
+  bearishHarami: { recipe: 'bullishHarami', flipped: true },
+  tweezerBottom: { recipe: 'tweezerBottom' },
+  tweezerTop: { recipe: 'tweezerBottom', flipped: true },
+  morningStar: { recipe: 'morningStar' },
+  eveningStar: { recipe: 'morningStar', flipped: true },
+  abandonedBabyBullish: { recipe: 'abandonedBaby' },
+  abandonedBabyBearish: { recipe: 'abandonedBaby', flipped: true },
+  threeWhiteSoldiers: { recipe: 'threeWhiteSoldiers' },
+  threeBlackCrows: { recipe: 'threeWhiteSoldiers', flipped: true },
+  threeInsideUp: { recipe: 'threeInsideUp' },
+  threeInsideDown: { recipe: 'threeInsideUp', flipped: true },
+  threeOutsideUp: { recipe: 'threeOutsideUp' },
+  threeOutsideDown: { recipe: 'threeOutsideUp', flipped: true },
+  risingThreeMethods: { recipe: 'risingThreeMethods', lead: 'up' },
+  fallingThreeMethods: { recipe: 'risingThreeMethods', lead: 'up', flipped: true },
+  morningDojiStar: { recipe: 'morningDojiStar' },
+  eveningDojiStar: { recipe: 'morningDojiStar', flipped: true },
+  bullishHaramiCross: { recipe: 'bullishHaramiCross' },
+  bearishHaramiCross: { recipe: 'bullishHaramiCross', flipped: true },
+  bullishKicker: { recipe: 'bullishKicker', lead: 'flat' },
+  bearishKicker: { recipe: 'bullishKicker', lead: 'flat', flipped: true },
+  bullishCounterattack: { recipe: 'bullishCounterattack' },
+  bearishCounterattack: { recipe: 'bullishCounterattack', flipped: true },
+  risingWindow: { recipe: 'risingWindow', lead: 'up' },
+  fallingWindow: { recipe: 'risingWindow', lead: 'up', flipped: true },
+  insideBar: { recipe: 'insideBar', lead: 'flat' },
+  bullishBeltHold: { recipe: 'bullishBeltHold' },
+  bearishBeltHold: { recipe: 'bullishBeltHold', flipped: true },
+}

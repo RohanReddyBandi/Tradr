@@ -1,7 +1,7 @@
 import type { Candle, Shape } from '../types'
 import { makeRng } from './random'
 import { pathThrough } from './generator'
-import { SIGNAL_RECIPES, type SignalKey } from './signalCandles'
+import { CANDLE_RECIPES, SIGNAL_RECIPES, type LeadIn } from './signalCandles'
 import { findChartPatterns } from './chartPatterns'
 
 // Small example charts for the Learn tab. Candlestick examples reuse the
@@ -24,59 +24,8 @@ export const flip = (cs: Candle[]): Candle[] =>
 // Candlestick examples: a short lead-in, then the pattern.
 // ---------------------------------------------------------------------------
 
-export type LeadIn = 'down' | 'up' | 'flat'
-export interface CandleRecipe {
-  recipe: SignalKey
-  flipped?: boolean // build the bullish version, then turn it upside down
-  lead?: LeadIn // the move into the pattern (down by default)
-}
-
-export const CANDLE_RECIPES: Record<string, CandleRecipe> = {
-  hammer: { recipe: 'hammer' },
-  shootingStar: { recipe: 'hammer', flipped: true },
-  invertedHammer: { recipe: 'invertedHammer' },
-  hangingMan: { recipe: 'invertedHammer', flipped: true },
-  dragonflyDoji: { recipe: 'dragonflyDoji' },
-  gravestoneDoji: { recipe: 'dragonflyDoji', flipped: true },
-  longLeggedDoji: { recipe: 'longLeggedDoji', lead: 'flat' },
-  doji: { recipe: 'doji', lead: 'flat' },
-  spinningTop: { recipe: 'spinningTop', lead: 'flat' },
-  bullishMarubozu: { recipe: 'bullishMarubozu', lead: 'flat' },
-  bearishMarubozu: { recipe: 'bullishMarubozu', lead: 'flat', flipped: true },
-  bullishEngulfing: { recipe: 'bullishEngulfing' },
-  bearishEngulfing: { recipe: 'bullishEngulfing', flipped: true },
-  piercingLine: { recipe: 'piercingLine' },
-  darkCloudCover: { recipe: 'piercingLine', flipped: true },
-  bullishHarami: { recipe: 'bullishHarami' },
-  bearishHarami: { recipe: 'bullishHarami', flipped: true },
-  tweezerBottom: { recipe: 'tweezerBottom' },
-  tweezerTop: { recipe: 'tweezerBottom', flipped: true },
-  morningStar: { recipe: 'morningStar' },
-  eveningStar: { recipe: 'morningStar', flipped: true },
-  abandonedBabyBullish: { recipe: 'abandonedBaby' },
-  abandonedBabyBearish: { recipe: 'abandonedBaby', flipped: true },
-  threeWhiteSoldiers: { recipe: 'threeWhiteSoldiers' },
-  threeBlackCrows: { recipe: 'threeWhiteSoldiers', flipped: true },
-  threeInsideUp: { recipe: 'threeInsideUp' },
-  threeInsideDown: { recipe: 'threeInsideUp', flipped: true },
-  threeOutsideUp: { recipe: 'threeOutsideUp' },
-  threeOutsideDown: { recipe: 'threeOutsideUp', flipped: true },
-  risingThreeMethods: { recipe: 'risingThreeMethods', lead: 'up' },
-  fallingThreeMethods: { recipe: 'risingThreeMethods', lead: 'up', flipped: true },
-  morningDojiStar: { recipe: 'morningDojiStar' },
-  eveningDojiStar: { recipe: 'morningDojiStar', flipped: true },
-  bullishHaramiCross: { recipe: 'bullishHaramiCross' },
-  bearishHaramiCross: { recipe: 'bullishHaramiCross', flipped: true },
-  bullishKicker: { recipe: 'bullishKicker', lead: 'flat' },
-  bearishKicker: { recipe: 'bullishKicker', lead: 'flat', flipped: true },
-  bullishCounterattack: { recipe: 'bullishCounterattack' },
-  bearishCounterattack: { recipe: 'bullishCounterattack', flipped: true },
-  risingWindow: { recipe: 'risingWindow', lead: 'up' },
-  fallingWindow: { recipe: 'risingWindow', lead: 'up', flipped: true },
-  insideBar: { recipe: 'insideBar', lead: 'flat' },
-  bullishBeltHold: { recipe: 'bullishBeltHold' },
-  bearishBeltHold: { recipe: 'bullishBeltHold', flipped: true },
-}
+// The recipes live next to the candles they draw; re-exported here for the Learn and Practice code.
+export { CANDLE_RECIPES, type CandleRecipe, type LeadIn } from './signalCandles'
 
 export function leadIn(direction: LeadIn, count: number): Candle[] {
   const candles: Candle[] = []

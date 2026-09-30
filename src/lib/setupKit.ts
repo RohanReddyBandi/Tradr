@@ -18,6 +18,8 @@ export interface Waypoint {
   gap?: boolean
   // The stretch leading up to this point is quiet: small candles, little wiggle.
   calm?: boolean
+  // A softer version for backstories: the stretch is this much quieter (0.5 = half the usual size).
+  hush?: number
 }
 
 export interface Blueprint {

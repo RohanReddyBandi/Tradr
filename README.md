@@ -154,7 +154,7 @@ saved separately and aren't cleared by Reset.
 ## Build status
 
 1. ✅ Swipe card UI
-2. ✅ Synthetic chart generator: 33 setups in a bullish and a bearish version, plus 3 no-edge charts (chop, a volatility squeeze, a broadening formation): 69 kinds of card in all
+2. ✅ Synthetic chart generator: 33 setups in a bullish and a bearish version, plus 3 no-edge charts (chop, a volatility squeeze, a broadening formation): 69 kinds of card, each drawn in varied lengths, backstories, and candle styles, with real candlestick patterns planted along the way
 3. ✅ Trade setup panel (position size, draggable stop loss and take profit, live risk/reward) and a replay that closes at the stop or target
 4. ✅ Breakdown: replay, markup drawn on the chart, decision graded separately from the outcome, and the best stop and target in hindsight with an accuracy score for yours
 5. ✅ Pattern detection: 44 candlestick patterns and 58 chart patterns (including gaps, islands, diamonds, rounding and V bottoms, broadening formations, rectangles, trendlines and trendline breaks, climaxes, Fibonacci pullbacks, and changes of character), found from the raw candles alone
@@ -170,22 +170,37 @@ saved separately and aren't cleared by Reset.
    bull flag), draws a price path through that setup's waypoints, and finishes it with
    real candlestick pattern candles from `lib/signalCandles.ts`. It also builds 30 hidden
    future candles that follow the setup 80% of the time, because good setups still fail
-   now and then. Each card also gets its own look (calmer or jumpier, shorter or longer
-   wicks) and a varied lead-in, so the same setup doesn't look the same twice.
-   Setups are dealt from a shuffled bag: none comes back (in the same direction) until
-   every other one has had its turn.
-2. Bearish charts are the bullish ones flipped upside down, so every pattern is only
+   now and then. Setups are dealt from a shuffled bag: none comes back (in the same
+   direction) until every other one has had its turn.
+2. Each card also gets its own look (`lib/variety.ts`), so the same setup never looks
+   the same twice:
+   - a length from 45 to 90 candles (easy cards stay short, so the pattern fills the chart)
+   - a backstory for the stretch before the pattern: a plain drift, a swing, a staircase,
+     a quiet base before or after the move, an overshoot, a zigzag, a spike, a steady
+     grind, or chop. It never crosses the pattern's first key price, so it can't undercut
+     a support or top a breakout line.
+   - a candle style: standard, smooth, wicky, jumpy, or volatility that builds or fades
+   - usually one to three real candlestick patterns at earlier turning points (a hammer
+     on a double bottom's first low, a shooting star at a channel's top), each checked
+     by the detector
+   - signal candles drawn with random proportions, so two hammers aren't identical
+   Lengths, backstories, and styles are dealt from shuffled bags as well. A few setups
+   only read correctly in some looks (a climax must be the fastest move on the chart),
+   so each setup has limits, found by checking the scanner still recognises it. That's
+   about 190,000 combinations of setup, direction, length, backstory, style, and signal
+   before any of the randomness inside each one.
+3. Bearish charts are the bullish ones flipped upside down, so every pattern is only
    written once. The same trick halves `lib/candlePatterns.ts`.
-3. After you set up the trade, `lib/trade.ts` replays it candle by candle and closes it
+4. After you set up the trade, `lib/trade.ts` replays it candle by candle and closes it
    at your stop or target (or at the last candle). `lib/analyze.ts` finds the candlestick
    patterns on the last candles, grades your decision against the setup (never against
    the result), and `lib/riskReview.ts` judges where you put your stop and target.
    `lib/bestLevels.ts` then works out, with hindsight, where they should have gone: the
    best target sits just inside the best price reached before the idea broke, and the best
    stop just past the deepest dip on the way there.
-4. `pages/BreakdownView.tsx` replays the future candles, then `components/Markup.tsx`
+5. `pages/BreakdownView.tsx` replays the future candles, then `components/Markup.tsx`
    draws the patterns on the chart.
-5. The pattern scanner (`lib/chartPatterns.ts`) reads the same candles with no answer
+6. The pattern scanner (`lib/chartPatterns.ts`) reads the same candles with no answer
    key: it finds swing points (`lib/pivots.ts`), then looks for each chart pattern in
    them. The Breakdown shows what it found and whether it matched the pattern the
    generator built, and the tests grade it against thousands of generated charts.
@@ -212,6 +227,7 @@ saved separately and aren't cleared by Reset.
 | `src/lib/setups.ts`, `src/lib/moreSetups.ts` | The chart setups the generator can build |
 | `src/lib/setupKit.ts` | The pieces setups are written with: waypoints, blueprints, drawing helpers |
 | `src/lib/generator.ts` | Builds random charts with a setup baked in |
+| `src/lib/variety.ts` | Each card's look: length, backstory, candle style, and planted candlestick patterns |
 | `src/lib/trade.ts` | Trade math and the replay that checks the stop and target |
 | `src/lib/riskReview.ts` | Grades your stop and target placement |
 | `src/lib/bestLevels.ts` | The best stop and target in hindsight, and how accurate yours were |

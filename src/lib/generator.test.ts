@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { findSignalPatterns } from './candlePatterns'
-import { EASY_SETUPS, FUTURE_CANDLES, SETUP_WIN_RATE, VISIBLE_CANDLES, generateCard, makeDealer } from './generator'
+import { EASY_SETUPS, FUTURE_CANDLES, SETUP_WIN_RATE, generateCard, makeDealer } from './generator'
+import { CHART_LENGTHS } from './variety'
 import { analyze } from './analyze'
 import { defaultPlan } from './trade'
 import { makeRng } from './random'
@@ -10,9 +11,9 @@ import { SETUPS } from './setups'
 const cards = Array.from({ length: 1500 }, (_, i) => generateCard(i + 1, i * 7919 + 13))
 
 describe('generateCard', () => {
-  it('makes 60 visible candles and 30 hidden ones, all sensible', () => {
+  it('makes 45 to 90 visible candles and 30 hidden ones, all sensible', () => {
     for (const card of cards) {
-      expect(card.candles).toHaveLength(VISIBLE_CANDLES)
+      expect(CHART_LENGTHS).toContain(card.candles.length)
       expect(card.future).toHaveLength(FUTURE_CANDLES)
       for (const c of [...card.candles, ...card.future]) {
         expect(c.low).toBeGreaterThan(0)
