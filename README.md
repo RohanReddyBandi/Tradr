@@ -38,8 +38,10 @@ The deployed site uses generated charts only, since the real-chart data isn't in
 
 - Drag the card right to **buy**, left to **sell**, up to **skip**
 - Or use the Sell / Skip / Buy buttons
-- After a buy or sell, set your position size, stop loss, and take profit: drag the
-  lines on the chart or type prices, then confirm
+- After a buy or sell, set how much to risk (1% of your balance by default), your stop
+  loss, and your take profit: drag the lines on the chart or type prices, then confirm.
+  The position size follows from the risk and the stop: move the stop closer and you
+  can buy more for the same risk, which is how most traders size positions
 - On desktop: arrow keys (→ buy, ← sell, ↑ skip), Escape to back out of a trade,
   Enter for the next card
 
@@ -106,8 +108,8 @@ separately and isn't cleared by Reset.
 
 1. ✅ Swipe card UI
 2. ✅ Synthetic chart generator: 33 setups in a bullish and a bearish version, plus 3 no-edge charts (chop, a volatility squeeze, a broadening formation): 69 kinds of card in all
-3. ✅ Trade setup panel (position size, draggable stop loss and take profit, live risk/reward) and a replay that closes at the stop or target
-4. ✅ Breakdown: replay, markup drawn on the chart, decision graded separately from the outcome
+3. ✅ Trade setup panel (risk-based position size, draggable stop loss and take profit, live risk/reward) and a replay that closes at the stop or target
+4. ✅ Breakdown: replay, markup drawn on the chart, decision graded separately from the outcome, and the best stop and target in hindsight with an accuracy score for yours
 5. ✅ Pattern detection: 44 candlestick patterns and 58 chart patterns (including gaps, islands, diamonds, rounding and V bottoms, broadening formations, rectangles, trendlines and trendline breaks, climaxes, Fibonacci pullbacks, and changes of character), found from the raw candles alone
 6. ✅ Stats (equity curve, win rate, average R, decision accuracy, skip stats, accuracy by difficulty and by pattern), a Learn tab with every pattern, and saving to localStorage
 7. ✅ Real historical data: 270 real 90-day windows from 45 stocks and funds, mixed in with generated charts
@@ -129,6 +131,9 @@ separately and isn't cleared by Reset.
    at your stop or target (or at the last candle). `lib/analyze.ts` finds the candlestick
    patterns on the last candles, grades your decision against the setup (never against
    the result), and `lib/riskReview.ts` judges where you put your stop and target.
+   `lib/bestLevels.ts` then works out, with hindsight, where they should have gone: the
+   best target sits just inside the best price reached before the idea broke, and the best
+   stop just past the deepest dip on the way there.
 4. `pages/BreakdownView.tsx` replays the future candles, then `components/Markup.tsx`
    draws the patterns on the chart.
 5. The pattern scanner (`lib/chartPatterns.ts`) reads the same candles with no answer
@@ -157,6 +162,7 @@ separately and isn't cleared by Reset.
 | `src/lib/generator.ts` | Builds random charts with a setup baked in |
 | `src/lib/trade.ts` | Trade math and the replay that checks the stop and target |
 | `src/lib/riskReview.ts` | Grades your stop and target placement |
+| `src/lib/bestLevels.ts` | The best stop and target in hindsight, and how accurate yours were |
 | `src/lib/analyze.ts` | Grades a decision and writes the Breakdown text |
 | `src/lib/stats.ts` | Works out the Stats page numbers from your history |
 | `src/lib/realCards.ts` | Turns saved real price windows into cards |

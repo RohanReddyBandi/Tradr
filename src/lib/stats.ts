@@ -16,6 +16,10 @@ export interface TradeRecord {
   pnl: number // dollars won or lost (0 for skips)
   r: number | null // result in R (null for skips)
   missedPnl: number | null // skips: what trading the setup would have made (null if there was no setup)
+  // Trades: how close your stop and target were to the best ones (0 to 1).
+  // Missing on trades saved before this was added.
+  stopAccuracy?: number | null
+  targetAccuracy?: number | null
   balanceAfter: number
   patterns: string[] // names of the patterns on the chart, for tracking what you get right
   at: number // when, in milliseconds since 1970
@@ -55,8 +59,16 @@ export function computeStats(history: TradeRecord[], startingBalance: number) {
     }
   }
 
+  // Average accuracy of your stops and targets, over the trades that have it.
+  const average = (values: (number | null | undefined)[]) => {
+    const known = values.filter((v): v is number => typeof v === 'number')
+    return known.length ? known.reduce((a, b) => a + b, 0) / known.length : null
+  }
+
   return {
     equity,
+    stopAccuracy: average(trades.map((r) => r.stopAccuracy)),
+    targetAccuracy: average(trades.map((r) => r.targetAccuracy)),
     cards: history.length,
     trades: trades.length,
     winRate: share(trades.filter((r) => r.outcome === 'win').length, trades.length),

@@ -8,7 +8,8 @@ import { Markup } from '../components/Markup'
 import { DifficultyBadge } from '../components/DifficultyBadge'
 import { findEntry } from '../lib/library'
 import { COLORS } from '../theme'
-import { formatR, formatSignedMoney, formatSignedPercent } from '../format'
+import { formatMoney, formatR, formatSignedMoney, formatSignedPercent } from '../format'
+import type { BestLevels } from '../lib/bestLevels'
 import { riskAndReward, sign, type TradePlan, type TradeResult } from '../lib/trade'
 import type { Candle, Finding } from '../types'
 
@@ -66,8 +67,9 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
   const priceRange = useMemo(() => {
     const prices = allCandles.flatMap((c) => [c.low, c.high])
     if (b.plan) prices.push(b.plan.stop, b.plan.target)
+    if (b.best) prices.push(b.best.stop, b.best.target)
     return { min: Math.min(...prices), max: Math.max(...prices) }
-  }, [allCandles, b.plan])
+  }, [allCandles, b.plan, b.best])
   const visibleCandles = useMemo(() => allCandles.slice(0, shown), [allCandles, shown])
 
   // The numbers so far, updated as each replayed candle arrives.
@@ -149,6 +151,7 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
                   showFindings={done}
                   activeId={activeId}
                   levels={b.plan && { stop: b.plan.stop, target: b.plan.target }}
+                  best={b.best && { stop: b.best.stop, target: b.best.target }}
                   exit={b.result && { index: entryIndex + 1 + b.result.exit.index, price: b.result.exit.price }}
                 />
               )}
@@ -212,6 +215,13 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
                 <Reveal>
                   <SectionTitle>Your stop and target</SectionTitle>
                   <p className="mt-2 text-[16px] leading-relaxed text-neutral-200">{b.riskText}</p>
+                </Reveal>
+              )}
+
+              {b.best && (
+                <Reveal>
+                  <SectionTitle>Best stop and target</SectionTitle>
+                  <BestLevelsSection b={b} best={b.best} />
                 </Reveal>
               )}
 
@@ -284,6 +294,71 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
         </aside>
       </div>
     </div>
+  )
+}
+
+// Bar color for an accuracy score: red, amber, then green.
+const accuracyColor = (share: number) => (share < 0.4 ? 'bg-down' : share < 0.7 ? 'bg-amber' : 'bg-up')
+
+// Where the stop and target should have gone (in hindsight), and how close
+// yours were. For a skipped setup, where they should have gone had you traded it.
+function BestLevelsSection({ b, best }: { b: Breakdown; best: BestLevels }) {
+  const plan = b.plan ?? b.missed?.plan
+  if (!plan) return null
+  const long = plan.direction === 'long'
+  const risked = formatMoney(riskAndReward(plan).risk)
+  const bestResult = `${formatSignedMoney(best.result.pnl)} (${formatR(best.result.r)})`
+  const extreme = long ? 'high' : 'low'
+  const dip = long ? 'dip' : 'bounce'
+
+  let text: string
+  if (!best.movedYourWay) {
+    text = `Price never really moved your way before breaking the logical stop at ${best.logicalStop.toFixed(2)}, just past the recent swing. The best you could do was a small, planned loss there: ${bestResult} risking ${risked}. Sometimes the best trade is a quick exit.`
+  } else {
+    text = `In hindsight, the best take profit was ${best.target.toFixed(2)}, just inside the ${extreme} of ${best.peak.toFixed(2)} on day ${best.peakDay}, and the best stop was ${best.stop.toFixed(2)}, just past the deepest ${dip} on the way there. Risking the same ${risked}, those levels would have made ${bestResult}.`
+  }
+
+  if (!b.plan || !b.result) {
+    return (
+      <p className="mt-2 text-[16px] leading-relaxed text-neutral-200">
+        Had you traded it with the usual 1% risk: {text.charAt(0).toLowerCase()}
+        {text.slice(1)}
+      </p>
+    )
+  }
+
+  const rows = [
+    { name: 'Stop loss', yours: b.plan.stop, best: best.stop, accuracy: best.stopAccuracy },
+    { name: 'Take profit', yours: b.plan.target, best: best.target, accuracy: best.targetAccuracy },
+  ]
+  return (
+    <>
+      <div className="mt-3 flex flex-col gap-4">
+        {rows.map((row) => (
+          <div key={row.name}>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-[15px]">{row.name}</span>
+              <span className="font-mono text-[13px] text-muted">
+                yours {row.yours.toFixed(2)} · best {row.best.toFixed(2)}
+                <span className="ml-2 text-[15px] text-neutral-100">{row.accuracy === null ? '—' : `${Math.round(row.accuracy * 100)}%`}</span>
+              </span>
+            </div>
+            <div className="mt-2 h-1.5 rounded-full bg-neutral-800">
+              {row.accuracy !== null && (
+                <div className={`h-full rounded-full ${accuracyColor(row.accuracy)}`} style={{ width: `${Math.max(4, row.accuracy * 100)}%` }} />
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-4 text-[16px] leading-relaxed text-neutral-200">
+        {text} Yours made {formatSignedMoney(b.result.pnl)} ({formatR(b.result.r)}).
+      </p>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
+        Hindsight is perfect and nobody hits these exactly. Accuracy compares distances from your entry: 100% is the same distance as the
+        best level, 50% is twice as far away (or half as far).
+      </p>
+    </>
   )
 }
 

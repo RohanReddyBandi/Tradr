@@ -5,10 +5,11 @@ import { CandleChart } from '../components/CandleChart'
 import { TradeLines } from '../components/TradeLines'
 import { BackIcon } from '../components/icons'
 import {
-  DEFAULT_POSITION_SHARE,
+  DEFAULT_RISK_SHARE,
   defaultPlan,
   planProblem,
   riskAndReward,
+  sizeForRisk,
   type Direction,
   type TradePlan,
 } from '../lib/trade'
@@ -21,7 +22,7 @@ interface Props {
   onCancel: () => void
 }
 
-const SIZE_CHOICES = [0.05, 0.1, 0.25] // quick-pick shares of your balance
+const RISK_CHOICES = [0.005, 0.01, 0.02] // quick picks: the share of your balance to risk
 
 // "1,000.00" -> 1000. Commas and dollar signs are ignored.
 const parseAmount = (text: string) => Number(text.replace(/[$,\s]/g, ''))
@@ -40,25 +41,27 @@ function chartRange(candles: Candle[], levels: number[]) {
 export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props) {
   const { card } = pending
   const [direction, setDirection] = useState<Direction>(pending.direction)
-  const start = useMemo(
-    () => defaultPlan(card.candles, pending.direction, balance * DEFAULT_POSITION_SHARE),
-    [card, pending.direction, balance],
-  )
+  const start = useMemo(() => defaultPlan(card.candles, pending.direction, 0), [card, pending.direction])
 
   // The form keeps what you typed as text, so half-typed numbers like "12." don't get mangled.
-  const [sizeText, setSizeText] = useState(asAmount(start.size))
+  const [riskText, setRiskText] = useState(asAmount(Math.round(balance * DEFAULT_RISK_SHARE * 100) / 100))
   const [stopText, setStopText] = useState(start.stop.toFixed(2))
   const [targetText, setTargetText] = useState(start.target.toFixed(2))
 
+  // You choose how much to lose if the stop is hit; the position size follows
+  // from how far away the stop is. Move the stop closer and you can buy more.
+  const riskBudget = parseAmount(riskText)
+  const stop = parseAmount(stopText)
   const plan: TradePlan = {
     direction,
     entry: start.entry,
-    size: parseAmount(sizeText),
-    stop: parseAmount(stopText),
+    size: sizeForRisk(start.entry, stop, riskBudget, balance),
+    stop,
     target: parseAmount(targetText),
   }
-  const problem = planProblem(plan, balance)
+  const problem = !(riskBudget > 0) ? 'Enter how much you want to risk.' : planProblem(plan, balance)
   const { risk, reward } = riskAndReward(plan)
+  const capped = !problem && risk < riskBudget - 0.01 // the position hit your whole balance before reaching the risk
   const long = direction === 'long'
 
   // The chart's price range only grows when a level lands outside it (typed
@@ -102,6 +105,7 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
   }
 
   const sizeShare = plan.size / balance
+  const shares = plan.size / plan.entry
 
   return (
     <form onSubmit={submit} className="h-full overflow-y-auto lg:overflow-hidden">
@@ -174,17 +178,18 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
 
           <div>
             <div className="flex items-center justify-between">
-              <label htmlFor="size" className="text-[15px] text-soft">
-                Position size
+              <label htmlFor="risk" className="text-[15px] text-soft">
+                Risk if the stop is hit
               </label>
               <div className="flex gap-2">
-                {SIZE_CHOICES.map((share) => {
-                  const selected = Math.abs(plan.size - balance * share) < 0.01
+                {RISK_CHOICES.map((share) => {
+                  const amount = Math.round(balance * share * 100) / 100
+                  const selected = Math.abs(riskBudget - amount) < 0.01
                   return (
                     <button
                       key={share}
                       type="button"
-                      onClick={() => setSizeText(asAmount(Math.round(balance * share * 100) / 100))}
+                      onClick={() => setRiskText(asAmount(amount))}
                       className={`h-9 rounded-xl border px-3 text-sm transition-colors ${
                         selected ? 'border-neutral-600 bg-neutral-900 text-white' : 'border-edge text-muted hover:text-soft'
                       }`}
@@ -198,18 +203,27 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
             <div className="mt-2 flex h-12 items-center rounded-2xl border border-edge bg-card px-4 focus-within:border-neutral-500">
               <span className="font-mono text-lg text-muted">$</span>
               <input
-                id="size"
+                id="risk"
                 inputMode="decimal"
                 autoComplete="off"
-                value={sizeText}
-                onChange={(e) => setSizeText(e.target.value)}
-                onBlur={() => Number.isFinite(plan.size) && plan.size > 0 && setSizeText(asAmount(plan.size))}
+                value={riskText}
+                onChange={(e) => setRiskText(e.target.value)}
+                onBlur={() => riskBudget > 0 && setRiskText(asAmount(riskBudget))}
                 className="ml-1 min-w-0 flex-1 bg-transparent font-mono text-lg outline-none"
               />
-              <span className="shrink-0 text-xs text-muted">
-                {Number.isFinite(sizeShare) ? `${(sizeShare * 100).toFixed(sizeShare < 0.1 ? 1 : 0)}% of balance` : ''}
-              </span>
+              <span className="shrink-0 text-xs text-muted">{riskBudget > 0 ? `${((riskBudget / balance) * 100).toFixed(1)}% of balance` : ''}</span>
             </div>
+            <p className="mt-2 text-[13px] leading-relaxed text-muted">
+              {plan.size > 0 ? (
+                <>
+                  Position: <span className="font-mono text-soft">{formatMoney(plan.size)}</span> ({shares.toFixed(shares < 10 ? 1 : 0)} shares,{' '}
+                  {(sizeShare * 100).toFixed(0)}% of your balance)
+                  {capped && '. That uses your whole balance, so you risk less than you asked. Move the stop closer to risk more.'}
+                </>
+              ) : (
+                'Your position size comes from the risk and the stop distance.'
+              )}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

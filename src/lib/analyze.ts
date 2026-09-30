@@ -3,7 +3,8 @@ import { findSignalPatterns } from './candlePatterns'
 import { findChartPatterns, pickChartPatterns, toFinding } from './chartPatterns'
 import { SCANNER_MATCHES } from './setups'
 import { FUTURE_CANDLES } from './generator'
-import { defaultPlan, simulateTrade, type TradePlan, type TradeResult } from './trade'
+import { riskSizedPlan, simulateTrade, type TradePlan, type TradeResult } from './trade'
+import { bestLevels, type BestLevels } from './bestLevels'
 import { reviewStopAndTarget, type StopTargetReview } from './riskReview'
 import { formatMoney } from '../format'
 
@@ -35,6 +36,7 @@ export interface Breakdown {
   missed: { plan: TradePlan; result: TradeResult } | null // skips: trading the setup with default levels
   pnl: number // dollars won or lost (0 when skipped)
   risk: StopTargetReview | null // how good your stop and target were
+  best: BestLevels | null // where the stop and target should have gone, in hindsight (trades and skipped setups)
   findings: Finding[] // everything to name and draw, chart patterns first
   scanned: Finding[] // what the pattern scanner found reading only the candles
   scannerAgrees: boolean | null // did it find the built-in setup? (null when there's none to find)
@@ -53,9 +55,9 @@ function outcomeOf(r: number): Outcome {
   return r > 0 ? 'win' : 'loss'
 }
 
-// `plan` is your trade (null for a skip); `stake` is the usual position size,
-// used to show what trading a skipped setup would have done.
-export function analyze(card: ChartCard, decision: Decision, plan: TradePlan | null, stake: number): Breakdown {
+// `plan` is your trade (null for a skip); `balance` sizes the trade a
+// skipped setup would have been (risking the usual 1% of it).
+export function analyze(card: ChartCard, decision: Decision, plan: TradePlan | null, balance: number): Breakdown {
   const { setup } = card
   const bias = setup.bias
   const entry = card.candles[card.candles.length - 1].close
@@ -65,7 +67,7 @@ export function analyze(card: ChartCard, decision: Decision, plan: TradePlan | n
   const result = plan ? simulateTrade(plan, card.future) : null
   let missed: Breakdown['missed'] = null
   if (!plan && bias !== 'neutral') {
-    const missedPlan = defaultPlan(card.candles, bias === 'bullish' ? 'long' : 'short', stake)
+    const missedPlan = riskSizedPlan(card.candles, bias === 'bullish' ? 'long' : 'short', balance)
     missed = { plan: missedPlan, result: simulateTrade(missedPlan, card.future) }
   }
   const outcome = result ? outcomeOf(result.r) : missed ? outcomeOf(missed.result.r) : 'flat'
@@ -105,6 +107,8 @@ export function analyze(card: ChartCard, decision: Decision, plan: TradePlan | n
   const hardText = card.difficultyNotes.length ? `What made this one hard: ${listOf(card.difficultyNotes)}.` : ''
 
   const risk = plan ? reviewStopAndTarget(card.candles, plan) : null
+  const tradeToJudge = plan ?? missed?.plan ?? null
+  const best = tradeToJudge ? bestLevels(card.candles, card.future, tradeToJudge, balance) : null
 
   // --- The scanner: the same candles, read with no answer key ----------------
   // On generated charts we can check it against the built-in pattern. Real
@@ -127,6 +131,7 @@ export function analyze(card: ChartCard, decision: Decision, plan: TradePlan | n
     missed,
     pnl: result?.pnl ?? 0,
     risk,
+    best,
     findings: [...setup.chartFindings, ...candleFindings],
     scanned,
     scannerAgrees,

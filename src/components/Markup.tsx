@@ -14,13 +14,14 @@ interface Props {
   showFindings: boolean // patterns are drawn once the replay is done
   activeId: string | null // the pattern chip being hovered or tapped
   levels: { stop: number; target: number } | null // your stop loss and take profit
+  best: { stop: number; target: number } | null // where they should have gone, in hindsight (shown once the replay is done)
   exit: { index: number; price: number } | null // where the trade closed (candle index, price)
 }
 
 // Everything drawn on top of the Breakdown chart: the replay zone, entry and
 // exit markers, and the pattern markup (grey for chart patterns, yellow for
 // candlestick patterns).
-export function Markup({ project, candles, entryIndex, shownCount, exitColor, findings, scanned, showFindings, activeId, levels, exit }: Props) {
+export function Markup({ project, candles, entryIndex, shownCount, exitColor, findings, scanned, showFindings, activeId, levels, best, exit }: Props) {
   const { width, height } = project
   const x = (index: number) => project.x(index) ?? -100
   const y = (price: number) => project.y(price) ?? -100
@@ -82,6 +83,22 @@ export function Markup({ project, candles, entryIndex, shownCount, exitColor, fi
                 {l.tag}
               </text>
             </g>
+          ))}
+
+        {/* The best stop and target, in hindsight: dotted, labelled at the left of the replay zone. */}
+        {showFindings &&
+          best &&
+          [
+            { price: best.target, color: COLORS.up, tag: `Best TP ${best.target.toFixed(2)}` },
+            { price: best.stop, color: COLORS.down, tag: `Best SL ${best.stop.toFixed(2)}` },
+          ].map((l) => (
+            <motion.g key={l.tag} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.3 }}>
+              <line x1={divider} y1={y(l.price)} x2={width} y2={y(l.price)} stroke={l.color} strokeWidth={1.75} strokeDasharray="1 4" strokeLinecap="round" />
+              <rect x={divider + 6} y={y(l.price) - 9} width={l.tag.length * 6 + 12} height={18} rx={5} fill={COLORS.base} stroke={l.color} strokeOpacity={0.5} />
+              <text x={divider + 12} y={y(l.price) + 4} fill={l.color} fontSize={10.5} fontWeight={600}>
+                {l.tag}
+              </text>
+            </motion.g>
           ))}
 
         {/* Where you got in, and where you got out (or where the replay has got to). */}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Candle } from '../types'
-import { planProblem, riskAndReward, simulateTrade, type TradePlan } from './trade'
+import { planProblem, riskAndReward, simulateTrade, sizeForRisk, type TradePlan } from './trade'
 import { reviewStopAndTarget } from './riskReview'
 
 const candles = (rows: number[][]): Candle[] =>
@@ -99,5 +99,19 @@ describe('reviewStopAndTarget', () => {
 
   it('flags a target that is closer than the stop', () => {
     expect(reviewStopAndTarget(chart, { ...long, stop: 95.5, target: 102 }).target).toBe('poor-ratio')
+  })
+})
+
+describe('sizeForRisk', () => {
+  it('sizes the position so hitting the stop loses exactly the risk', () => {
+    const size = sizeForRisk(100, 95, 100) // $5 a share at risk, $100 to risk: 20 shares
+    expect(size).toBe(2000)
+    expect(riskAndReward({ direction: 'long', entry: 100, size, stop: 95, target: 110 }).risk).toBeCloseTo(100)
+  })
+
+  it('buys more when the stop is closer, but never more than you have', () => {
+    expect(sizeForRisk(100, 98, 100)).toBe(5000)
+    expect(sizeForRisk(100, 99.5, 100, 10_000)).toBe(10_000)
+    expect(sizeForRisk(100, 100, 100)).toBe(0) // a stop at the entry risks nothing per share
   })
 })

@@ -109,6 +109,22 @@ export function StatsPage({ game, practice, onPlay, onLearn }: Props) {
               Good reads grades your decisions; win rate grades the results. Over time, the first one drives the second.
             </p>
 
+            <Section title="Stop and target accuracy">
+              <ScoreRow
+                name="Stop loss"
+                detail={stats.stopAccuracy === null ? 'no trades yet' : `${Math.round(stats.stopAccuracy * 100)}% on average`}
+                share={stats.stopAccuracy}
+              />
+              <ScoreRow
+                name="Take profit"
+                detail={stats.targetAccuracy === null ? 'no trades yet' : `${Math.round(stats.targetAccuracy * 100)}% on average`}
+                share={stats.targetAccuracy}
+              />
+              <p className="text-sm leading-relaxed text-muted">
+                How close your levels were to the best ones in hindsight, shown after every trade.
+              </p>
+            </Section>
+
             <Section title="Good reads by difficulty">
               {stats.difficulty.map((d) => (
                 <ScoreRow
