@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { makeRealCard, type RealWindow } from './realCards'
+import { drawRealCard, makeRealCard, readPaidOff, type RealWindow } from './realCards'
 import { analyze } from './analyze'
 import { defaultPlan } from './trade'
 
@@ -58,5 +58,14 @@ describe.skipIf(!hasData)('makeRealCard', () => {
     expect(b.scanned).toEqual([]) // the scanner's read is already the findings
     expect(b.scannerAgrees).toBeNull()
     expect(b.chartText).toMatch(/real chart/)
+  })
+})
+
+describe.skipIf(!hasData)('drawRealCard', () => {
+  it('deals real charts where a good read pays off about 4 times in 5', () => {
+    const dealt = Array.from({ length: 400 }, (_, i) => drawRealCard(pool, i + 1)).filter((c) => c.setup.bias !== 'neutral')
+    const rate = dealt.filter(readPaidOff).length / dealt.length
+    expect(rate).toBeGreaterThan(0.68)
+    expect(rate).toBeLessThan(0.92)
   })
 })

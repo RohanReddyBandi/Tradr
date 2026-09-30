@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ChartCard, Decision } from '../types'
-import { generateCard } from '../lib/generator'
+import { makeDealer } from '../lib/generator'
 import { drawRealCard, loadRealWindows, loadedRealWindows } from '../lib/realCards'
 import { analyze, type Breakdown } from '../lib/analyze'
 import { DEFAULT_POSITION_SHARE, type Direction, type TradePlan } from '../lib/trade'
@@ -57,9 +57,13 @@ function save(saved: Saved) {
 // About a third of the cards are real charts, once those have loaded.
 const REAL_SHARE = 0.35
 
+// Generated cards come from a shuffled "bag" of every setup, so the same
+// setup doesn't come back until you've seen all the others.
+const dealGenerated = makeDealer()
+
 function nextCard(number: number): ChartCard {
   const real = loadedRealWindows()
-  return real && Math.random() < REAL_SHARE ? drawRealCard(real, number) : generateCard(number)
+  return real && Math.random() < REAL_SHARE ? drawRealCard(real, number) : dealGenerated(number)
 }
 
 // A fresh deck, numbered on from the last card played.

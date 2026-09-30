@@ -145,6 +145,12 @@ const risingWindow: Recipe = (R, rng) => {
   return [first, bar(open, open + rng.range(0.45, 0.8) * R, 0.1 * R, 0.05 * R)]
 }
 
+// One strong green candle that opens well above the last close: a clear gap.
+const gapUp: Recipe = (R, rng) => {
+  const open = rng.range(0.9, 1.2) * R
+  return [bar(open, open + rng.range(0.6, 0.9) * R, 0.1 * R, 0.05 * R)]
+}
+
 const bullishBeltHold: Recipe = (R) => {
   const open = -0.65 * R // gaps down, then climbs all day from the open
   return [bar(open, open + 1.0 * R, 0.25 * R, 0)]
@@ -180,6 +186,7 @@ export const SIGNAL_RECIPES = {
   bullishCounterattack,
   risingWindow,
   bullishBeltHold,
+  gapUp,
   doji,
   spinningTop,
   longLeggedDoji,
@@ -202,10 +209,13 @@ export const REVERSAL_SIGNALS: SignalKey[] = [
   'abandonedBaby',
   'morningDojiStar',
   'bullishHaramiCross',
+  'bullishBeltHold',
+  'bullishCounterattack',
+  'bullishKicker',
 ]
 
 // Candles that push price through a line.
-export const BREAKOUT_SIGNALS: SignalKey[] = ['bullishMarubozu', 'threeWhiteSoldiers', 'risingWindow', 'bullishKicker']
+export const BREAKOUT_SIGNALS: SignalKey[] = ['bullishMarubozu', 'threeWhiteSoldiers', 'risingWindow', 'bullishKicker', 'risingThreeMethods', 'gapUp']
 
 // Big, obvious signals, used on easy cards...
 export const STRONG_SIGNALS: SignalKey[] = [

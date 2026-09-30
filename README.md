@@ -74,6 +74,11 @@ like generated cards; afterwards the Breakdown reveals the stock and the dates.
 - **Grading:** a real chart has no built-in answer, so the pattern scanner reads it and
   its read is the answer key: bullish patterns add to a score, bearish ones subtract,
   and a weak or mixed score counts as "no clear setup".
+- **Picked, like textbook examples:** trading with the scanner's read only pays off about
+  40% of the time on these charts (real markets are harsh). To keep the game's odds the
+  same as on generated cards, each real card is first given a kind (no edge 20% of the
+  time; otherwise a read that paid off 80% of the time and one that didn't 20%), then an
+  unused chart of that kind is dealt. The prices are untouched.
 
 ## Practice
 
@@ -100,20 +105,24 @@ separately and isn't cleared by Reset.
 ## Build status
 
 1. ✅ Swipe card UI
-2. ✅ Synthetic chart generator: 18 setups (plus a no-edge "chop" chart), each in a bullish and a bearish version
+2. ✅ Synthetic chart generator: 33 setups in a bullish and a bearish version, plus 3 no-edge charts (chop, a volatility squeeze, a broadening formation): 69 kinds of card in all
 3. ✅ Trade setup panel (position size, draggable stop loss and take profit, live risk/reward) and a replay that closes at the stop or target
 4. ✅ Breakdown: replay, markup drawn on the chart, decision graded separately from the outcome
-5. ✅ Pattern detection: 44 candlestick patterns and 52 chart patterns (including gaps, islands, diamonds, rounding and V bottoms, broadening formations, rectangles, trendlines, and changes of character), found from the raw candles alone
+5. ✅ Pattern detection: 44 candlestick patterns and 58 chart patterns (including gaps, islands, diamonds, rounding and V bottoms, broadening formations, rectangles, trendlines and trendline breaks, climaxes, Fibonacci pullbacks, and changes of character), found from the raw candles alone
 6. ✅ Stats (equity curve, win rate, average R, decision accuracy, skip stats, accuracy by difficulty and by pattern), a Learn tab with every pattern, and saving to localStorage
 7. ✅ Real historical data: 270 real 90-day windows from 45 stocks and funds, mixed in with generated charts
 8. ✅ Practice tab: mark the candles, build a candlestick, draw a chart pattern
 
 ## How a card works
 
-1. `lib/generator.ts` picks a setup from `lib/setups.ts` (say, a bull flag), draws a
-   price path through that setup's waypoints, and finishes it with real candlestick
-   pattern candles from `lib/signalCandles.ts`. It also builds 30 hidden future candles
-   that follow the setup 65% of the time, because good setups still fail.
+1. `lib/generator.ts` picks a setup from `lib/setups.ts` or `lib/moreSetups.ts` (say, a
+   bull flag), draws a price path through that setup's waypoints, and finishes it with
+   real candlestick pattern candles from `lib/signalCandles.ts`. It also builds 30 hidden
+   future candles that follow the setup 80% of the time, because good setups still fail
+   now and then. Each card also gets its own look (calmer or jumpier, shorter or longer
+   wicks) and a varied lead-in, so the same setup doesn't look the same twice.
+   Setups are dealt from a shuffled bag: none comes back (in the same direction) until
+   every other one has had its turn.
 2. Bearish charts are the bullish ones flipped upside down, so every pattern is only
    written once. The same trick halves `lib/candlePatterns.ts`.
 3. After you set up the trade, `lib/trade.ts` replays it candle by candle and closes it
@@ -142,8 +151,9 @@ separately and isn't cleared by Reset.
 | `src/components/TradeLines.tsx` | The draggable stop loss and take profit lines |
 | `src/lib/candlePatterns.ts` | Detectors for 44 candlestick patterns |
 | `src/lib/pivots.ts` | Finds swing highs and lows (a "zigzag") |
-| `src/lib/chartPatterns.ts` | Detectors for 52 chart patterns, with meanings and common traps |
-| `src/lib/setups.ts` | The chart setups the generator can build |
+| `src/lib/chartPatterns.ts` | Detectors for 58 chart patterns, with meanings and common traps |
+| `src/lib/setups.ts`, `src/lib/moreSetups.ts` | The chart setups the generator can build |
+| `src/lib/setupKit.ts` | The pieces setups are written with: waypoints, blueprints, drawing helpers |
 | `src/lib/generator.ts` | Builds random charts with a setup baked in |
 | `src/lib/trade.ts` | Trade math and the replay that checks the stop and target |
 | `src/lib/riskReview.ts` | Grades your stop and target placement |

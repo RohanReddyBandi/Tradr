@@ -1,77 +1,14 @@
-import type { Bias, Candle, ChartPoint, Finding, Shape } from '../types'
-import type { Rng } from './random'
-import { BREAKOUT_SIGNALS, REVERSAL_SIGNALS, type SignalKey } from './signalCandles'
+import type { ChartPoint, Shape } from '../types'
+import { BREAKOUT_SIGNALS, REVERSAL_SIGNALS } from './signalCandles'
+import { dot, either, highest, lastCandles, level, line, lineThrough, lowest, money, percent, type SetupRecipe, type Waypoint } from './setupKit'
+import { MORE_SETUPS, MORE_SCANNER_MATCHES } from './moreSetups'
 
-// Every setup below is described in its *bullish* form, around a price of 100.
-// The generator flips the finished chart upside down for the bearish version
-// (a double bottom becomes a double top), so each shape is only written once.
-
-// A point the price path must pass through. With `touch`, the candle's wick
-// (not its close) lands exactly on that price, so drawn lines touch the chart.
-export interface Waypoint {
-  at: number // candle index
-  price: number
-  touch?: 'high' | 'low'
-}
-
-export interface Blueprint {
-  waypoints: Waypoint[] // first one at index 0, last one at `end`
-  // The chart-pattern markup, built once the candles exist so it can hug real wicks.
-  findings: (candles: Candle[], bias: Bias) => Finding[]
-  prices: Record<string, number> // prices the story quotes
-  counts?: Record<string, number> // plain numbers the story quotes
-  target: number // where the pattern says price should go
-  invalidation: number // where the idea is proven wrong
-}
-
-export interface SetupRecipe {
-  key: string
-  names: { bullish: string; bearish: string }
-  signals: SignalKey[] // candle patterns that can finish this setup
-  // `end` is the index of the last candle before the signal candles; `R` is a
-  // typical candle's size.
-  build: (rng: Rng, end: number, R: number) => Blueprint
-  story: (bias: Bias, prices: Record<string, number>, counts: Record<string, number>) => string
-}
-
-// ---------------------------------------------------------------------------
-// Small helpers
-// ---------------------------------------------------------------------------
-
-const either = (bias: Bias, bullish: string, bearish: string) => (bias === 'bearish' ? bearish : bullish)
-
-function lowest(cs: Candle[], from: number, to: number): ChartPoint {
-  let best = from
-  for (let i = from; i <= to; i++) if (cs[i].low < cs[best].low) best = i
-  return { index: best, price: cs[best].low }
-}
-
-function highest(cs: Candle[], from: number, to: number): ChartPoint {
-  let best = from
-  for (let i = from; i <= to; i++) if (cs[i].high > cs[best].high) best = i
-  return { index: best, price: cs[best].high }
-}
-
-// A straight line through two points, as a function of candle index.
-const lineThrough = (a: ChartPoint, b: ChartPoint) => (i: number) =>
-  a.price + ((b.price - a.price) * (i - a.index)) / (b.index - a.index)
-
-const line = (from: ChartPoint, to: ChartPoint, label?: string): Shape => ({ kind: 'line', from, to, label })
-const level = (price: number, fromIndex: number, toIndex: number, label?: string): Shape => ({
-  kind: 'level',
-  price,
-  fromIndex,
-  toIndex,
-  label,
-})
-const dot = (at: ChartPoint, label: string, place: 'above' | 'below'): Shape => ({ kind: 'dot', at, label, place })
-
-// Story formatting.
-const money = (n: number) => n.toFixed(2)
-const percent = (from: number, to: number) => `${Math.abs(((to - from) / from) * 100).toFixed(1)}%`
-export function lastCandles(n: number) {
-  return n === 1 ? 'last candle' : `last ${['', '', 'two', 'three', 'four', 'five'][n]} candles`
-}
+// The chart setups the generator can build. The shared pieces (the Waypoint
+// and Blueprint types, drawing helpers) live in setupKit.ts; the newer setups
+// are in moreSetups.ts. Every setup is written in its bullish form, around a
+// price of 100, and flipped upside down for the bearish version.
+export type { Blueprint, SetupRecipe, Waypoint } from './setupKit'
+export { lastCandles } from './setupKit'
 
 // ---------------------------------------------------------------------------
 // The setups
@@ -675,6 +612,7 @@ const structure: SetupRecipe = {
 const chop: SetupRecipe = {
   key: 'chop',
   names: { bullish: 'No clear setup', bearish: 'No clear setup' },
+  neutral: true,
   signals: ['doji', 'spinningTop', 'longLeggedDoji'],
   build(rng, end, R) {
     const middle = 100
@@ -1297,6 +1235,7 @@ export const SETUPS: SetupRecipe[] = [
   trendlineBounce,
   changeOfCharacter,
   rectangle,
+  ...MORE_SETUPS,
   chop,
 ]
 
@@ -1321,4 +1260,5 @@ export const SCANNER_MATCHES: Record<string, string[]> = {
   trendline: ['risingTrendline', 'fallingTrendline', 'ascendingChannel', 'descendingChannel', 'higherHighsHigherLows', 'lowerHighsLowerLows'],
   choch: ['bullishChangeOfCharacter', 'bearishChangeOfCharacter', 'breakout', 'breakdown'],
   rectangle: ['bullishRectangle', 'bearishRectangle', 'horizontalChannel', 'breakout', 'breakdown'],
+  ...MORE_SCANNER_MATCHES,
 }

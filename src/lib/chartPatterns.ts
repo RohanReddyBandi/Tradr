@@ -198,6 +198,24 @@ export const CHART_PATTERNS: Record<string, ChartPatternInfo> = Object.fromEntri
     info('exhaustionGapUp', 'Exhaustion gap up', 'bearish', 'gap', 'Bearish reversal',
       'After a long run up, price gapped up one last time, then quickly fell back and filled the gap. The final burst ran out of buyers.',
       "It only becomes an exhaustion gap once it's filled. Before that, it looks like one more gap up."),
+    info('uptrendLineBreak', 'Uptrend line break', 'bearish', 'breakout', 'Uptrend may be over',
+      'Price closed below a rising trendline that had caught every dip. The buyers who kept stepping in there finally did not.',
+      'Trendlines get broken and then reclaimed all the time. A second close below, or a failed bounce back to the line, is stronger.'),
+    info('downtrendLineBreak', 'Downtrend line break', 'bullish', 'breakout', 'Downtrend may be over',
+      'Price closed above a falling trendline that had capped every bounce. The sellers who kept stepping in there finally did not.',
+      'Trendlines get broken and then lost again all the time. A second close above, or a dip that holds above the line, is stronger.'),
+    info('sellingClimax', 'Selling climax', 'bullish', 'reversal', 'Bullish reversal',
+      'A decline that suddenly speeds up into a panic drop, then a candle where buyers push back. Everyone who wanted out sold at once.',
+      'Catching a falling knife is risky: a climax is only clear once the bounce holds. Keep the stop under the panic low.'),
+    info('buyingClimax', 'Buying climax', 'bearish', 'reversal', 'Bearish reversal',
+      'A rise that suddenly speeds up into a frenzied spike, then a candle where sellers push back. Everyone who wanted in bought at once.',
+      'Shorting a runaway rally is risky: a climax is only clear once the drop holds. Keep the stop above the spike high.'),
+    info('bullishFibPullback', 'Bullish Fibonacci pullback', 'bullish', 'level', 'Uptrend likely resumes',
+      'After a strong move up, price gave back 38 to 62 percent of it: the zone where traders expect the uptrend to pick up again.',
+      "It's a zone, not a line, and a pullback deeper than about 62% often means the move up is done."),
+    info('bearishFibPullback', 'Bearish Fibonacci pullback', 'bearish', 'level', 'Downtrend likely resumes',
+      'After a strong move down, price bounced back 38 to 62 percent of it: the zone where traders expect the downtrend to pick up again.',
+      "It's a zone, not a line, and a bounce higher than about 62% often means the move down is done."),
   ].map((p) => [p.key, p]),
 )
 
@@ -715,6 +733,7 @@ const trendline: Detector = ({ candles, pivots, atr, last, close }, side) => {
     if (line.slope < 0.05 * atr) continue
     if (!touches.every((p) => Math.abs(p.price - line.at(p.index)) <= 0.8 * atr)) continue
     if (candles.slice(first).some((c, k) => c.close < line.at(first + k) - 0.8 * atr)) continue
+    if (close < line.at(last) - 0.3 * atr) continue // already broken (see trendlineBreak)
     if (close > line.at(last) + 5 * atr) continue // too far above for the line to matter
 
     return found(
@@ -728,6 +747,97 @@ const trendline: Detector = ({ candles, pivots, atr, last, close }, side) => {
     )
   }
   return null
+}
+
+// Uptrend line break: a rising trendline through three or more swing lows
+// held for a long time, then in the last few candles price closed clearly below it.
+const trendlineBreak: Detector = ({ candles, pivots, atr, last, close }, side) => {
+  const lows = pivots.filter((p) => p.kind === 'low' && p.confirmed && last - p.index <= 55 && last - p.index >= 4)
+  for (let count = Math.min(5, lows.length); count >= 3; count--) {
+    const touches = lows.slice(-count)
+    const first = touches[0].index
+    if (last - first < 15) continue
+    const line = fitLine(touches.map(pt))
+    if (line.slope < 0.05 * atr) continue
+    if (!touches.every((p) => Math.abs(p.price - line.at(p.index)) <= 0.8 * atr)) continue
+    // It held until the last four candles...
+    if (candles.slice(first, last - 3).some((c, k) => c.close < line.at(first + k) - 0.8 * atr)) continue
+    // ...and now price has closed clearly below it.
+    if (close > line.at(last) - 0.3 * atr) continue
+
+    return found(
+      pick(side, 'uptrendLineBreak', 'downtrendLineBreak'),
+      [
+        { kind: 'line', from: { index: first, price: line.at(first) }, to: { index: last, price: line.at(last) }, label: 'Trendline' },
+        ...touches.map((p): Shape => ({ kind: 'dot', at: pt(p), label: '', place: 'below' })),
+        { kind: 'dot', at: { index: last, price: candles[last].low }, label: 'Break', place: 'below' },
+      ],
+      first,
+      last,
+    )
+  }
+  return null
+}
+
+// Selling climax: a decline that suddenly speeds up (the last week falling
+// at least twice as fast as the two weeks before), then a candle that closes
+// in the top half of its range or above the one before: buyers pushed back.
+const climax: Detector = ({ candles, atr, last }, side) => {
+  if (last < 25) return null
+  const low = lowestLow(candles, last - 3, last)
+  const i = low.index
+  const earlySpeed = (candles[i - 18].close - candles[i - 7].close) / 11 // how fast it was falling before
+  const late = candles[i - 7].close - low.price // how far it fell in the last week
+  if (earlySpeed < 0.1 * atr || late < 5 * atr || late / 7 < 2 * earlySpeed) return null
+  // A climax is by far the fastest stretch on the chart: compare it with
+  // every earlier 7-candle stretch.
+  let fastestBefore = 0
+  for (let j = 7; j <= i - 8; j++) fastestBefore = Math.max(fastestBefore, candles[j - 7].close - candles[j].close)
+  if (late < 1.6 * fastestBefore) return null
+
+  const c = candles[last]
+  const pushedBack = c.close >= c.low + 0.5 * (c.high - c.low) || c.close > candles[last - 1].close
+  if (!pushedBack) return null
+
+  return found(
+    pick(side, 'sellingClimax', 'buyingClimax'),
+    [
+      { kind: 'line', from: { index: i - 18, price: candles[i - 18].close }, to: { index: i - 7, price: candles[i - 7].close } },
+      { kind: 'line', from: { index: i - 7, price: candles[i - 7].close }, to: low, label: pick(side, 'Panic', 'Frenzy') },
+      { kind: 'dot', at: low, label: pick(side, 'Climax low', 'Climax high'), place: 'below' },
+    ],
+    i - 18,
+    last,
+  )
+}
+
+// Bullish Fibonacci pullback: a strong move up (at least 8 ATRs), then a dip
+// that has given back 38 to 66 percent of it and just bottomed.
+const fibPullback: Detector = ({ candles, pivots, atr, last }, side) => {
+  const highs = pivots.filter((p) => p.kind === 'high' && p.confirmed)
+  const top = highs[highs.length - 1]
+  if (!top || last - top.index > 15 || last - top.index < 3) return null
+  const base = lowestLow(candles, top.index - 20, top.index) // where the move up started
+  const move = top.price - base.price
+  if (move < 8 * atr || top.index - base.index < 5) return null
+
+  const dip = lowestLow(candles, top.index + 1, last)
+  const giveBack = (top.price - dip.price) / move
+  if (giveBack < 0.38 || giveBack > 0.66 || last - dip.index > 5) return null
+
+  const at = (share: number) => top.price - move * share
+  const zone = (share: number, label: string): Shape => ({ kind: 'level', price: at(share), fromIndex: top.index, toIndex: last, label })
+  return found(
+    pick(side, 'bullishFibPullback', 'bearishFibPullback'),
+    [
+      { kind: 'line', from: base, to: pt(top), label: pick(side, 'Move up', 'Move down') },
+      zone(0.382, '38%'),
+      zone(0.5, '50%'),
+      zone(0.618, '62%'),
+    ],
+    base.index,
+    last,
+  )
 }
 
 // Bullish change of character: a downtrend (a lower high, then a lower low),
@@ -989,13 +1099,16 @@ export function findChartPatterns(candles: Candle[]): ChartPatternMatch[] {
     ...bothWays(diamond, chart, flipped),
     ...bothWays(roundingBottom, chart, flipped),
     ...bothWays(vBottom, chart, flipped),
+    ...bothWays(climax, chart, flipped),
     ...bothWays(flagOrPennant, chart, flipped),
     ...trendLines(chart),
     ...squeeze(chart),
     ...bothWays(trendline, chart, flipped),
+    ...bothWays(trendlineBreak, chart, flipped),
     ...bothWays(gaps, chart, flipped),
     ...bothWays(changeOfCharacter, chart, flipped),
     ...bothWays(marketStructure, chart, flipped),
+    ...bothWays(fibPullback, chart, flipped),
     ...levels(chart),
   ]
 }

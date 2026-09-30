@@ -2,6 +2,7 @@ import type { Bias, Candle, ChartCard } from '../types'
 import { findChartPatterns, pickChartPatterns, toFinding, type PatternFamily } from './chartPatterns'
 import { findSignalPatterns } from './candlePatterns'
 import { VISIBLE_CANDLES } from './generator'
+import { defaultPlan, simulateTrade } from './trade'
 
 // Real price history, saved by scripts/fetch-real-charts.mjs.
 export interface RealWindow {
@@ -104,22 +105,48 @@ export function makeRealCard(w: RealWindow, number: number): ChartCard {
   }
 }
 
-// Pick an unused real chart. Charts with a clear read are preferred, but a
-// few murky ones get through too: skipping those is part of the game.
+// Did trading with the chart's read, with the usual stop and target, pay off?
+export function readPaidOff(card: ChartCard): boolean {
+  const long = card.setup.bias === 'bullish'
+  return simulateTrade(defaultPlan(card.candles, long ? 'long' : 'short', 1000), card.future).r > 0.15
+}
+
+// Real markets are harsh: on these charts, trading with the scanner's read
+// only pays off about 40% of the time. So that a good read wins about 4 times
+// in 5 here too (like the generated charts), each real card is first given a
+// kind, in these proportions, and then an unused chart of that kind is dealt.
+// The charts are still real; they're picked, like the examples in a textbook.
+const NO_EDGE_SHARE = 0.2 // murky charts, where skipping is right
+const GOOD_READ_PAYS = 0.8
+
+type Kind = 'no edge' | 'paid off' | 'lost'
+const kinds = new Map<number, Kind>() // each window's kind, once we've looked at it
 const used = new Set<number>()
 
+function kindOf(card: ChartCard): Kind {
+  if (card.setup.bias === 'neutral') return 'no edge'
+  return readPaidOff(card) ? 'paid off' : 'lost'
+}
+
 export function drawRealCard(pool: RealWindow[], number: number): ChartCard {
-  if (used.size >= pool.length) used.clear()
-  let fallback: ChartCard | null = null
-  for (let attempt = 0; attempt < 6; attempt++) {
-    let index = Math.floor(Math.random() * pool.length)
-    while (used.has(index)) index = (index + 1) % pool.length
-    const card = makeRealCard(pool[index], number)
-    if (card.setup.bias !== 'neutral' || Math.random() < 0.3) {
-      used.add(index)
-      return card
+  const want: Kind = Math.random() < NO_EDGE_SHARE ? 'no edge' : Math.random() < GOOD_READ_PAYS ? 'paid off' : 'lost'
+  // Look through the unused charts in a random order. If none of the wanted
+  // kind are left, start the pile over (the charts come around again).
+  for (let round = 0; round < 2; round++) {
+    const unused = pool.map((_, i) => i).filter((i) => !used.has(i))
+    for (let k = unused.length - 1; k >= 0; k--) {
+      const pick = Math.floor(Math.random() * (k + 1))
+      const index = unused[pick]
+      unused[pick] = unused[k]
+      if (kinds.has(index) && kinds.get(index) !== want) continue
+      const card = makeRealCard(pool[index], number)
+      kinds.set(index, kindOf(card))
+      if (kinds.get(index) === want) {
+        used.add(index)
+        return card
+      }
     }
-    fallback ??= card
+    for (const index of used) if (kinds.get(index) === want) used.delete(index)
   }
-  return fallback!
+  return makeRealCard(pool[Math.floor(Math.random() * pool.length)], number)
 }

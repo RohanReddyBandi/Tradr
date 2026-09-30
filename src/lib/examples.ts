@@ -137,6 +137,9 @@ export const CHART_SHAPES: Record<string, Points> = {
   risingTrendline: [[0, 98], [6, 108], [10, 103], [17, 114], [22, 107], [28, 117], [34, 111], [40, 121], [43, 117]],
   bullishChangeOfCharacter: [[0, 118], [5, 124], [11, 110], [17, 118], [23, 104], [30, 121]],
   volatilitySqueeze: [[0, 100], [6, 112], [12, 100], [18, 112], [24, 100], [30, 112], [36, 104], [38, 106], [46, 106]],
+  downtrendLineBreak: [[0, 112], [6, 122], [12, 106], [18, 118], [24, 103], [30, 114], [36, 100], [44, 112]],
+  sellingClimax: [[0, 130], [30, 118], [37, 104], [38, 106]],
+  bullishFibPullback: [[0, 100], [4, 99], [16, 115], [24, 106.5], [25, 107.5]],
   // These four also need gaps: see GAPS below.
   islandBottom: [[0, 120], [20, 104], [26, 103], [33, 106]],
   exhaustionGapDown: [[0, 130], [24, 104], [26, 103], [32, 110]],
@@ -179,6 +182,9 @@ export const MIRRORS: Record<string, string> = {
   exhaustionGapUp: 'exhaustionGapDown',
   breakawayGapDown: 'breakawayGapUp',
   runawayGapDown: 'runawayGapUp',
+  uptrendLineBreak: 'downtrendLineBreak',
+  buyingClimax: 'sellingClimax',
+  bearishFibPullback: 'bullishFibPullback',
 }
 
 // Candles through the points, with a little randomness so they look real.

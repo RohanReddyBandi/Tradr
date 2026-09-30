@@ -51,6 +51,9 @@ const SHAPES: [string, [number, number][]][] = [
   ['Rising trendline', [[0, 98], [6, 108], [10, 103], [17, 114], [22, 107], [28, 117], [34, 111], [40, 121], [43, 117]]],
   ['Bullish change of character', [[0, 118], [5, 124], [11, 110], [17, 118], [23, 104], [30, 121]]],
   ['Volatility squeeze', [[0, 100], [6, 112], [12, 100], [18, 112], [24, 100], [30, 112], [36, 104], [38, 106], [46, 106]]],
+  ['Downtrend line break', [[0, 112], [6, 122], [12, 106], [18, 118], [24, 103], [30, 114], [36, 100], [44, 112]]],
+  ['Selling climax', [[0, 130], [30, 118], [37, 104], [38, 106]]],
+  ['Bullish Fibonacci pullback', [[0, 100], [4, 99], [16, 115], [24, 106.5], [25, 107.5]]],
 ]
 
 // Gap patterns: [name, points, gaps].
@@ -91,6 +94,9 @@ const TWINS: Record<string, string> = {
   'Exhaustion gap down': 'Exhaustion gap up',
   'Breakaway gap up': 'Breakaway gap down',
   'Runaway gap up': 'Runaway gap down',
+  'Downtrend line break': 'Uptrend line break',
+  'Selling climax': 'Buying climax',
+  'Bullish Fibonacci pullback': 'Bearish Fibonacci pullback',
 }
 
 describe('findChartPatterns on hand-drawn shapes', () => {
@@ -115,6 +121,10 @@ describe('findChartPatterns on hand-drawn shapes', () => {
 
   it('calls a flat range after a rally a rectangle, not just a channel', () => {
     expect(names(shape([[0, 90], [14, 108], [20, 101], [26, 108.2], [32, 101.2], [38, 108], [44, 104]]))).not.toContain('Horizontal channel')
+  })
+
+  it('does not call an ordinary pullback in a channel a climax', () => {
+    expect(names(shape(SHAPES[6][1]))).not.toContain('Buying climax')
   })
 
   it('does not see a head and shoulders in a plain uptrend', () => {

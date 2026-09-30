@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { findSignalPatterns } from './candlePatterns'
-import { FUTURE_CANDLES, SETUP_WIN_RATE, VISIBLE_CANDLES, generateCard } from './generator'
+import { EASY_SETUPS, FUTURE_CANDLES, SETUP_WIN_RATE, VISIBLE_CANDLES, generateCard, makeDealer } from './generator'
 import { analyze } from './analyze'
 import { defaultPlan } from './trade'
+import { makeRng } from './random'
+import { SETUPS } from './setups'
 
 // Build lots of cards from fixed seeds so the test gives the same answer every run.
 const cards = Array.from({ length: 1500 }, (_, i) => generateCard(i + 1, i * 7919 + 13))
@@ -66,7 +68,8 @@ describe('generateCard', () => {
     expect(count('hard')).toBeGreaterThan(0.25)
     // Easy cards stick to the clearest setups; hard cards say why they're hard.
     const easySetups = new Set(cards.filter((c) => c.difficulty === 'easy').map((c) => c.setup.key))
-    expect([...easySetups].sort()).toEqual(['chop', 'double', 'flag', 'rectangle', 'support', 'triangle', 'triple'])
+    expect([...easySetups].every((key) => EASY_SETUPS.includes(key))).toBe(true)
+    expect(easySetups.size).toBeGreaterThanOrEqual(8)
     expect(cards.filter((c) => c.difficulty === 'hard').every((c) => c.difficultyNotes.length >= 2)).toBe(true)
   })
 
@@ -116,5 +119,49 @@ describe('analyze', () => {
     expect(skipped.pnl).toBe(0)
     expect(skipped.missed).not.toBeNull()
     expect(skipped.riskText).toBeNull()
+  })
+})
+
+describe('makeDealer', () => {
+  const deal = makeDealer(makeRng(5).next)
+  // One full bag: every setup both ways, and each no-edge setup twice.
+  const bagSize = SETUPS.length * 2 // two tickets per setup: bullish and bearish, or a no-edge setup twice
+  const firstBag = Array.from({ length: bagSize }, (_, i) => deal(i + 1))
+
+  it('deals every setup, both ways, before repeating any', () => {
+    const seen = new Map<string, number>()
+    for (const card of firstBag) {
+      const name = `${card.setup.key}:${card.setup.bias}`
+      seen.set(name, (seen.get(name) ?? 0) + 1)
+    }
+    for (const setup of SETUPS) {
+      if (setup.neutral) expect(seen.get(`${setup.key}:neutral`)).toBe(2)
+      else {
+        expect(seen.get(`${setup.key}:bullish`)).toBe(1)
+        expect(seen.get(`${setup.key}:bearish`)).toBe(1)
+      }
+    }
+  })
+
+  it('still mixes difficulties', () => {
+    const cards = [...firstBag, ...Array.from({ length: 200 }, (_, i) => deal(bagSize + i + 1))]
+    const share = (d: string) => cards.filter((c) => c.difficulty === d).length / cards.length
+    expect(share('easy')).toBeGreaterThan(0.15)
+    expect(share('medium')).toBeGreaterThan(0.3)
+    expect(share('hard')).toBeGreaterThan(0.2)
+    expect(cards.filter((c) => c.difficulty === 'easy').every((c) => EASY_SETUPS.includes(c.setup.key))).toBe(true)
+  })
+})
+
+describe('good reads', () => {
+  it('pay off about 4 times in 5 with the usual stop and target', () => {
+    const directional = cards.filter((c) => c.setup.bias !== 'neutral')
+    const wins = directional.filter((c) => {
+      const long = c.setup.bias === 'bullish'
+      return analyze(c, long ? 'buy' : 'sell', defaultPlan(c.candles, long ? 'long' : 'short', 1000), 1000).outcome === 'win'
+    })
+    const rate = wins.length / directional.length
+    expect(rate).toBeGreaterThan(0.74)
+    expect(rate).toBeLessThan(0.88)
   })
 })

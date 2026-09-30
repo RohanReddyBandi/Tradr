@@ -198,7 +198,7 @@ function callTextFor(
   const lessons: Record<Grade, Record<Outcome, string>> = {
     'good-read': {
       win: 'The setup played out.',
-      loss: 'Setups like this work more often than not, but not every time. Keep making this call.',
+      loss: 'Setups like this work about 4 times in 5, but never every time. This was the 1 in 5. Keep making this call.',
       flat: 'It went nowhere this time. It was still the right call.',
     },
     'poor-read': {
