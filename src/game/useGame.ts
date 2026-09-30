@@ -5,6 +5,7 @@ import { drawRealCard, loadRealWindows, loadedRealWindows } from '../lib/realCar
 import { analyze, type Breakdown } from '../lib/analyze'
 import { DEFAULT_POSITION_SHARE, type Direction, type TradePlan } from '../lib/trade'
 import type { TradeRecord } from '../lib/stats'
+import { gradeMarkup, type ChartMarkup, type MarkupReview } from '../lib/userMarkup'
 
 export const STARTING_BALANCE = 10_000
 
@@ -20,6 +21,8 @@ export interface Review {
   breakdown: Breakdown
   settled: boolean // has the P&L been added to the balance yet?
   balanceBefore: number // your balance when you made the call
+  markup: ChartMarkup | null // what you drew on the setup chart
+  markupReview: MarkupReview | null // how it was graded (null if you drew nothing)
 }
 
 // ---------------------------------------------------------------------------
@@ -93,8 +96,16 @@ export function useGame() {
   const stake = Math.round(balance * DEFAULT_POSITION_SHARE * 100) / 100
 
   // Grade the card, open its Breakdown, and move the deck along.
-  function finish(card: ChartCard, decision: Decision, plan: TradePlan | null) {
-    setReview({ card, breakdown: analyze(card, decision, plan, stake), settled: false, balanceBefore: balance })
+  function finish(card: ChartCard, decision: Decision, plan: TradePlan | null, markup: ChartMarkup | null = null) {
+    const markupReview = markup ? gradeMarkup(card, markup) : null
+    setReview({
+      card,
+      breakdown: analyze(card, decision, plan, stake),
+      settled: false,
+      balanceBefore: balance,
+      markup: markupReview ? markup : null,
+      markupReview,
+    })
     setDeck((cards) => [...cards.slice(1), nextCard(cards[cards.length - 1].number + 1)])
   }
 
@@ -105,10 +116,10 @@ export function useGame() {
     else setPending({ card, direction: decision === 'buy' ? 'long' : 'short' })
   }
 
-  // You confirmed the trade on the setup screen.
-  function enterTrade(plan: TradePlan) {
+  // You confirmed the trade on the setup screen, with whatever you drew on the chart.
+  function enterTrade(plan: TradePlan, markup: ChartMarkup) {
     if (!pending) return
-    finish(pending.card, plan.direction === 'long' ? 'buy' : 'sell', plan)
+    finish(pending.card, plan.direction === 'long' ? 'buy' : 'sell', plan, markup)
     setPending(null)
   }
 
@@ -120,7 +131,7 @@ export function useGame() {
   // The replay finished: now the result counts. Guarded so it only happens once.
   function settle() {
     if (!review || review.settled) return
-    const { card, breakdown: b } = review
+    const { card, breakdown: b, markupReview: m } = review
     const balanceAfter = Math.round((balance + b.pnl) * 100) / 100
     const record: TradeRecord = {
       id: card.id,
@@ -136,6 +147,7 @@ export function useGame() {
       missedPnl: b.missed ? b.missed.result.pnl : null,
       stopAccuracy: b.plan && b.best ? b.best.stopAccuracy : null,
       targetAccuracy: b.plan && b.best ? b.best.targetAccuracy : null,
+      markup: m ? { right: m.right, total: m.total } : null,
       balanceAfter,
       patterns: b.findings.map((f) => f.name),
       at: Date.now(),

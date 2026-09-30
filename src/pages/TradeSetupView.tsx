@@ -3,7 +3,10 @@ import type { Candle } from '../types'
 import type { PendingTrade } from '../game/useGame'
 import { CandleChart } from '../components/CandleChart'
 import { TradeLines } from '../components/TradeLines'
+import { DrawingLayer, type Tool } from '../components/DrawingLayer'
 import { BackIcon } from '../components/icons'
+import { CandleSheet, PatternSheet, ToolBar, ToolHint, YourRead } from './MarkupTools'
+import type { ChartMarkup, Drawing } from '../lib/userMarkup'
 import {
   DEFAULT_POSITION_SHARE,
   defaultPlan,
@@ -17,7 +20,7 @@ import { formatMoney } from '../format'
 interface Props {
   pending: PendingTrade
   balance: number
-  onConfirm: (plan: TradePlan) => void
+  onConfirm: (plan: TradePlan, markup: ChartMarkup) => void
   onCancel: () => void
 }
 
@@ -50,6 +53,22 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
   const [stopText, setStopText] = useState(start.stop.toFixed(2))
   const [targetText, setTargetText] = useState(start.target.toFixed(2))
 
+  // Your markup: lines, levels, named candles, and the chart pattern.
+  const [tool, setTool] = useState<Tool>('trade')
+  const [drawings, setDrawings] = useState<Drawing[]>([])
+  const [pattern, setPattern] = useState<string | null>(null)
+  const [sheet, setSheet] = useState<{ kind: 'candle'; index: number } | { kind: 'pattern' } | null>(null)
+  const slots = card.candles.length + 8
+  const namedCandle = (index: number) => drawings.find((d): d is Extract<Drawing, { kind: 'candle' }> => d.kind === 'candle' && d.index === index)
+
+  function nameCandle(index: number, key: string | null) {
+    setDrawings((ds) => {
+      const rest = ds.filter((d) => !(d.kind === 'candle' && d.index === index))
+      return key ? [...rest, { kind: 'candle', index, key }] : rest
+    })
+    setSheet(null)
+  }
+
   const plan: TradePlan = {
     direction,
     entry: start.entry,
@@ -77,14 +96,14 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
     fitLevels(level === 'stop' ? price : plan.stop, level === 'target' ? price : plan.target)
   }
 
-  // Escape goes back to the card.
+  // Escape goes back to the card (a picker that's open closes first; it handles its own Escape).
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onCancel()
+      if (event.key === 'Escape' && !sheet) onCancel()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onCancel])
+  }, [onCancel, sheet])
 
   // Switching between long and short flips the stop and target to the other side.
   function chooseDirection(next: Direction) {
@@ -98,149 +117,204 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (!problem) onConfirm(plan)
+    if (!problem) onConfirm(plan, { drawings, pattern })
   }
 
   const sizeShare = plan.size / balance
 
   return (
-    <form onSubmit={submit} className="h-full overflow-y-auto lg:overflow-hidden">
-      <div className="mx-auto flex min-h-full max-w-md flex-col md:max-w-lg lg:grid lg:h-full lg:max-w-[1240px] lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[minmax(0,1fr)] lg:gap-10 lg:px-10 lg:py-8">
-        {/* Left: the chart with draggable lines. */}
-        <section className="flex flex-col lg:min-h-0">
-          <header className="flex items-center justify-between px-3 pt-4 pb-2 lg:px-0 lg:pt-0 lg:pb-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              aria-label="Back to the card"
-              className="grid size-11 place-items-center rounded-full text-neutral-200 transition-colors hover:bg-neutral-900"
-            >
-              <BackIcon />
-            </button>
-            <h1 className="text-xl font-bold tracking-tight lg:text-2xl">Set up trade</h1>
-            <span
-              className={`rounded-full border px-4 py-1.5 text-sm font-bold ${
-                long ? 'border-up/30 bg-up/10 text-up' : 'border-down/30 bg-down/10 text-down'
+    <>
+      <form onSubmit={submit} className="h-full overflow-y-auto lg:overflow-hidden">
+        <div className="mx-auto flex min-h-full max-w-md flex-col md:max-w-lg lg:grid lg:h-full lg:max-w-[1240px] lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[minmax(0,1fr)] lg:gap-10 lg:px-10 lg:py-8">
+          {/* Left: the chart with draggable lines. */}
+          <section className="flex flex-col lg:min-h-0">
+            <header className="flex items-center justify-between px-3 pt-4 pb-2 lg:px-0 lg:pt-0 lg:pb-4">
+              <button
+                type="button"
+                onClick={onCancel}
+                aria-label="Back to the card"
+                className="grid size-11 place-items-center rounded-full text-neutral-200 transition-colors hover:bg-neutral-900"
+              >
+                <BackIcon />
+              </button>
+              <h1 className="text-xl font-bold tracking-tight lg:text-2xl">Set up trade</h1>
+              <span
+                className={`rounded-full border px-4 py-1.5 text-sm font-bold ${
+                  long ? 'border-up/30 bg-up/10 text-up' : 'border-down/30 bg-down/10 text-down'
+                }`}
+              >
+                {long ? 'BUY' : 'SELL'}
+              </span>
+            </header>
+
+            {/* The chart grows while you draw on it, so there's more room to aim. */}
+            <div
+              className={`px-2 transition-[height] duration-300 lg:min-h-[360px] lg:flex-1 lg:rounded-3xl lg:border lg:border-edge lg:bg-card lg:p-3 ${
+                tool === 'trade' ? 'h-[248px] tall:h-[262px]' : 'h-[320px] tall:h-[360px]'
               }`}
             >
-              {long ? 'BUY' : 'SELL'}
-            </span>
-          </header>
-
-          <div className="h-[248px] px-2 tall:h-[262px] lg:min-h-[360px] lg:flex-1 lg:rounded-3xl lg:border lg:border-edge lg:bg-card lg:p-3">
-            <CandleChart
-              candles={card.candles}
-              slots={card.candles.length + 8}
-              priceRange={range}
-              label={`Chart of card ${card.number} with your entry, stop loss, and take profit`}
-              overlay={(project) => (
-                <TradeLines
-                  project={project}
-                  direction={direction}
-                  entry={plan.entry}
-                  stop={plan.stop}
-                  target={plan.target}
-                  range={range}
-                  onChange={(level, price) => (level === 'stop' ? setStopText : setTargetText)(price.toFixed(2))}
-                />
-              )}
-            />
-          </div>
-          <p className="px-4 pt-2 text-sm text-muted lg:px-0 lg:pt-3">Drag the lines on the chart or type a price</p>
-        </section>
-
-        {/* Right: the numbers. */}
-        <div className="flex flex-1 flex-col gap-4 px-4 pt-3 lg:min-h-0 lg:gap-6 lg:overflow-y-auto lg:px-0 lg:pt-12">
-          <div role="radiogroup" aria-label="Direction" className="grid grid-cols-2 gap-1 rounded-2xl border border-edge bg-card p-1">
-            {(['long', 'short'] as const).map((d) => {
-              const selected = direction === d
-              const tone = d === 'long' ? 'border-up/40 bg-up/10 text-up' : 'border-down/40 bg-down/10 text-down'
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => chooseDirection(d)}
-                  className={`h-11 rounded-xl border text-[17px] font-semibold transition-colors ${
-                    selected ? tone : 'border-transparent text-muted hover:text-soft'
-                  }`}
-                >
-                  {d === 'long' ? 'Buy (long)' : 'Sell (short)'}
-                </button>
-              )
-            })}
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between">
-              <label htmlFor="size" className="text-[15px] text-soft">
-                Position size
-              </label>
-              <div className="flex gap-2">
-                {SIZE_CHOICES.map((share) => {
-                  const selected = Math.abs(plan.size - balance * share) < 0.01
-                  return (
-                    <button
-                      key={share}
-                      type="button"
-                      onClick={() => setSizeText(asAmount(Math.round(balance * share * 100) / 100))}
-                      className={`h-9 rounded-xl border px-3 text-sm transition-colors ${
-                        selected ? 'border-neutral-600 bg-neutral-900 text-white' : 'border-edge text-muted hover:text-soft'
-                      }`}
-                    >
-                      {share * 100}%
-                    </button>
-                  )
-                })}
+              <CandleChart
+                candles={card.candles}
+                slots={slots}
+                priceRange={range}
+                label={`Chart of card ${card.number} with your entry, stop loss, and take profit`}
+                overlay={(project) => (
+                  <>
+                    <TradeLines
+                      project={project}
+                      direction={direction}
+                      entry={plan.entry}
+                      stop={plan.stop}
+                      target={plan.target}
+                      range={range}
+                      onChange={(level, price) => (level === 'stop' ? setStopText : setTargetText)(price.toFixed(2))}
+                    />
+                    <DrawingLayer
+                      project={project}
+                      candles={card.candles}
+                      slots={slots}
+                      tool={tool}
+                      drawings={drawings}
+                      selected={sheet?.kind === 'candle' ? sheet.index : null}
+                      onAdd={(d) => setDrawings((ds) => [...ds, d])}
+                      onPickCandle={(index) => setSheet({ kind: 'candle', index })}
+                    />
+                  </>
+                )}
+              />
+            </div>
+            <div className="px-4 pt-3 lg:px-0">
+              <ToolBar tool={tool} onTool={setTool} canUndo={drawings.length > 0} onUndo={() => setDrawings((ds) => ds.slice(0, -1))} />
+              <div className="pt-2">
+                <ToolHint tool={tool} />
               </div>
             </div>
-            <div className="mt-2 flex h-12 items-center rounded-2xl border border-edge bg-card px-4 focus-within:border-neutral-500">
-              <span className="font-mono text-lg text-muted">$</span>
-              <input
-                id="size"
-                inputMode="decimal"
-                autoComplete="off"
-                value={sizeText}
-                onChange={(e) => setSizeText(e.target.value)}
-                onBlur={() => Number.isFinite(plan.size) && plan.size > 0 && setSizeText(asAmount(plan.size))}
-                className="ml-1 min-w-0 flex-1 bg-transparent font-mono text-lg outline-none"
-              />
-              <span className="shrink-0 text-xs text-muted">
-                {Number.isFinite(sizeShare) ? `${(sizeShare * 100).toFixed(sizeShare < 0.1 ? 1 : 0)}% of balance` : ''}
-              </span>
+          </section>
+
+          {/* Right: the numbers. */}
+          <div className="flex flex-1 flex-col gap-4 px-4 pt-3 lg:min-h-0 lg:gap-6 lg:overflow-y-auto lg:px-0 lg:pt-12">
+            <YourRead
+              drawings={drawings}
+              pattern={pattern}
+              onNamePattern={() => setSheet({ kind: 'pattern' })}
+              onClearPattern={() => setPattern(null)}
+              onRename={(index) => setSheet({ kind: 'candle', index })}
+              onRemove={(k) => setDrawings((ds) => ds.filter((_, i) => i !== k))}
+            />
+
+            <div role="radiogroup" aria-label="Direction" className="grid grid-cols-2 gap-1 rounded-2xl border border-edge bg-card p-1">
+              {(['long', 'short'] as const).map((d) => {
+                const selected = direction === d
+                const tone = d === 'long' ? 'border-up/40 bg-up/10 text-up' : 'border-down/40 bg-down/10 text-down'
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => chooseDirection(d)}
+                    className={`h-11 rounded-xl border text-[17px] font-semibold transition-colors ${
+                      selected ? tone : 'border-transparent text-muted hover:text-soft'
+                    }`}
+                  >
+                    {d === 'long' ? 'Buy (long)' : 'Sell (short)'}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between">
+                <label htmlFor="size" className="text-[15px] text-soft">
+                  Position size
+                </label>
+                <div className="flex gap-2">
+                  {SIZE_CHOICES.map((share) => {
+                    const selected = Math.abs(plan.size - balance * share) < 0.01
+                    return (
+                      <button
+                        key={share}
+                        type="button"
+                        onClick={() => setSizeText(asAmount(Math.round(balance * share * 100) / 100))}
+                        className={`h-9 rounded-xl border px-3 text-sm transition-colors ${
+                          selected ? 'border-neutral-600 bg-neutral-900 text-white' : 'border-edge text-muted hover:text-soft'
+                        }`}
+                      >
+                        {share * 100}%
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="mt-2 flex h-12 items-center rounded-2xl border border-edge bg-card px-4 focus-within:border-neutral-500">
+                <span className="font-mono text-lg text-muted">$</span>
+                <input
+                  id="size"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={sizeText}
+                  onChange={(e) => setSizeText(e.target.value)}
+                  onBlur={() => Number.isFinite(plan.size) && plan.size > 0 && setSizeText(asAmount(plan.size))}
+                  className="ml-1 min-w-0 flex-1 bg-transparent font-mono text-lg outline-none"
+                />
+                <span className="shrink-0 text-xs text-muted">
+                  {Number.isFinite(sizeShare) ? `${(sizeShare * 100).toFixed(sizeShare < 0.1 ? 1 : 0)}% of balance` : ''}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <PriceInput id="stop" label="Stop loss" value={stopText} onChange={(v) => typeLevel('stop', v)} tone="text-down" />
+              <PriceInput id="target" label="Take profit" value={targetText} onChange={(v) => typeLevel('target', v)} tone="text-up" />
+            </div>
+
+            <div className="grid grid-cols-3 divide-x divide-edge rounded-2xl border border-edge bg-card py-3 text-center">
+              <Summary label="At risk" value={problem ? '—' : `−${formatMoney(risk)}`} tone="text-down" note={problem ? '' : `${((risk / balance) * 100).toFixed(1)}% of balance`} />
+              <Summary label="Reward" value={problem ? '—' : `+${formatMoney(reward)}`} tone="text-up" />
+              <Summary label="Risk : reward" value={problem || risk === 0 ? '—' : `1 : ${(reward / risk).toFixed(1)}`} tone="text-white" />
+            </div>
+
+            {/* Pushes the button to the bottom; on phones it sticks there while you scroll. */}
+            <div className="sticky bottom-0 mt-auto bg-base pb-4 lg:static lg:mt-0 lg:pb-0">
+              <p aria-live="polite" className="min-h-6 pb-1 text-sm text-amber">
+                {problem}
+              </p>
+              <button
+                type="submit"
+                disabled={!!problem}
+                className={`h-14 w-full rounded-2xl text-lg font-semibold text-black transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                  long ? 'bg-up hover:bg-[#5fe6ab]' : 'bg-down hover:bg-[#f47a72]'
+                }`}
+              >
+                Enter {direction} at {plan.entry.toFixed(2)}
+              </button>
             </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <PriceInput id="stop" label="Stop loss" value={stopText} onChange={(v) => typeLevel('stop', v)} tone="text-down" />
-            <PriceInput id="target" label="Take profit" value={targetText} onChange={(v) => typeLevel('target', v)} tone="text-up" />
-          </div>
-
-          <div className="grid grid-cols-3 divide-x divide-edge rounded-2xl border border-edge bg-card py-3 text-center">
-            <Summary label="At risk" value={problem ? '—' : `−${formatMoney(risk)}`} tone="text-down" note={problem ? '' : `${((risk / balance) * 100).toFixed(1)}% of balance`} />
-            <Summary label="Reward" value={problem ? '—' : `+${formatMoney(reward)}`} tone="text-up" />
-            <Summary label="Risk : reward" value={problem || risk === 0 ? '—' : `1 : ${(reward / risk).toFixed(1)}`} tone="text-white" />
-          </div>
-
-          {/* Pushes the button to the bottom; on phones it sticks there while you scroll. */}
-          <div className="sticky bottom-0 mt-auto bg-base pb-4 lg:static lg:mt-0 lg:pb-0">
-            <p aria-live="polite" className="min-h-6 pb-1 text-sm text-amber">
-              {problem}
-            </p>
-            <button
-              type="submit"
-              disabled={!!problem}
-              className={`h-14 w-full rounded-2xl text-lg font-semibold text-black transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                long ? 'bg-up hover:bg-[#5fe6ab]' : 'bg-down hover:bg-[#f47a72]'
-              }`}
-            >
-              Enter {direction} at {plan.entry.toFixed(2)}
-            </button>
-          </div>
         </div>
-      </div>
-    </form>
+      </form>
+
+      {/* Outside the form, so tapping a pattern can't submit the trade. */}
+      {sheet?.kind === 'candle' && (
+        <CandleSheet
+          candles={card.candles}
+          index={sheet.index}
+          current={namedCandle(sheet.index)?.key ?? null}
+          onPick={(key) => nameCandle(sheet.index, key)}
+          onRemove={() => nameCandle(sheet.index, null)}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet?.kind === 'pattern' && (
+        <PatternSheet
+          current={pattern}
+          onPick={(key) => {
+            setPattern(key)
+            setSheet(null)
+          }}
+          onClose={() => setSheet(null)}
+        />
+      )}
+    </>
   )
 }
 

@@ -20,6 +20,7 @@ export interface TradeRecord {
   // Missing on trades saved before this was added.
   stopAccuracy?: number | null
   targetAccuracy?: number | null
+  markup?: { right: number; total: number } | null // what you drew on the chart, and how much of it was right
   balanceAfter: number
   patterns: string[] // names of the patterns on the chart, for tracking what you get right
   at: number // when, in milliseconds since 1970

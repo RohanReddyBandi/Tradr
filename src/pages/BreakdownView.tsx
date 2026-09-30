@@ -12,6 +12,7 @@ import { formatMoney, formatSignedMoney, formatSignedPercent } from '../format'
 import type { BestLevels } from '../lib/bestLevels'
 import { riskAndReward, sign, type TradePlan, type TradeResult } from '../lib/trade'
 import type { Candle, Finding } from '../types'
+import { MarkupReviewCard } from './MarkupReviewCard'
 
 interface Props {
   review: Review
@@ -36,6 +37,13 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [pinnedId, setPinnedId] = useState<string | null>(null)
   const activeId = hoveredId ?? pinnedId
+  const [mineFocus, setMineFocus] = useState<number | null>(null) // one of your drawings, highlighted from "Your markup"
+  const m = review.markupReview
+  const mineStatus = useMemo(() => {
+    if (!m) return undefined
+    const good = new Map<number, boolean>([...m.lines.map((l) => [l.drawing, l.good] as const), ...m.candles.map((c) => [c.drawing, c.correct] as const)])
+    return (k: number) => (good.has(k) ? (good.get(k) ? 'good' : 'bad') : null)
+  }, [m])
 
   useEffect(() => {
     if (done) return
@@ -153,6 +161,9 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
                   levels={b.plan && { stop: b.plan.stop, target: b.plan.target }}
                   best={b.best && { stop: b.best.stop, target: b.best.target }}
                   exit={b.result && { index: entryIndex + 1 + b.result.exit.index, price: b.result.exit.price }}
+                  mine={review.markup?.drawings ?? null}
+                  mineStatus={mineStatus}
+                  mineFocus={mineFocus}
                 />
               )}
             />
@@ -204,6 +215,12 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
               {b.plan && b.best && (
                 <Reveal>
                   <AccuracyCard plan={b.plan} best={b.best} />
+                </Reveal>
+              )}
+
+              {m && (
+                <Reveal>
+                  <MarkupReviewCard review={m} onFocus={setMineFocus} onLearn={onLearn} />
                 </Reveal>
               )}
 

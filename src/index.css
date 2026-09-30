@@ -19,6 +19,7 @@
   --color-amber: #f5a524; /* decisions that need work */
   --color-chalk: #9a9a9a; /* chart-pattern markup */
   --color-marker: #f5d45e; /* candlestick-pattern markup */
+  --color-pen: #6cb8ff; /* your own drawings */
 }
 
 /* `tall:` classes only apply on screens with room to spare (most phones

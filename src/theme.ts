@@ -11,6 +11,7 @@ export const COLORS = {
   axisText: '#999999',
   chalk: '#9a9a9a', // chart-pattern markup
   marker: '#f5d45e', // candlestick-pattern markup
+  pen: '#6cb8ff', // your own drawings
 }
 
 export const MONO_FONT = "'Geist Mono Variable', ui-monospace, monospace"

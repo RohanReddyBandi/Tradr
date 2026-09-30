@@ -28,6 +28,7 @@ export function PatternPicker({ entries, groups, selected, done = [], onPick }: 
                 return (
                   <button
                     key={e.key}
+                    type="button"
                     onClick={() => onPick(e.key)}
                     aria-pressed={isSelected}
                     className={`flex min-h-10 items-center gap-2 rounded-full border px-3 text-[14px] transition-colors ${

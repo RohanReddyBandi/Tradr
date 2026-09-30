@@ -18,6 +18,7 @@ export interface Projector {
   x: (index: number) => number | null
   y: (price: number) => number | null
   toPrice: (y: number) => number | null // the other way: pixel height to price
+  toIndex: (x: number) => number | null // and pixels across to a candle position (can be in between)
   width: number // drawing area, not counting the price axis
   height: number
 }
@@ -141,6 +142,11 @@ export function CandleChart({ candles, slots, priceRange, overlay, label }: Prop
           x: xAt,
           y: (price) => api.series.priceToCoordinate(price),
           toPrice: (y) => api.series.coordinateToPrice(y),
+          toIndex: (x) => {
+            const a = xAt(0)
+            const b = xAt(1)
+            return a === null || b === null || a === b ? null : (x - a) / (b - a)
+          },
           // (Not timeScale().width(): the time axis is hidden, so that reports 0.)
           width: api.chart.paneSize(0).width,
           height: api.chart.paneSize(0).height,

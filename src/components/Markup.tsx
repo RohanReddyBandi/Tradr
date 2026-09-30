@@ -2,6 +2,8 @@ import { motion } from 'motion/react'
 import type { Candle, Finding, Shape } from '../types'
 import { COLORS } from '../theme'
 import type { Projector } from './CandleChart'
+import { DrawingShapes } from './DrawingLayer'
+import type { Drawing } from '../lib/userMarkup'
 
 interface Props {
   project: Projector
@@ -16,12 +18,31 @@ interface Props {
   levels: { stop: number; target: number } | null // your stop loss and take profit
   best: { stop: number; target: number } | null // where they should have gone, in hindsight (shown once the replay is done)
   exit: { index: number; price: number } | null // where the trade closed (candle index, price)
+  mine: Drawing[] | null // what you drew on the setup chart
+  mineStatus?: (k: number) => 'good' | 'bad' | null // how each drawing was graded (once the replay is done)
+  mineFocus: number | null // a drawing to highlight
 }
 
 // Everything drawn on top of the Breakdown chart: the replay zone, entry and
 // exit markers, and the pattern markup (grey for chart patterns, yellow for
 // candlestick patterns).
-export function Markup({ project, candles, entryIndex, shownCount, exitColor, findings, scanned, showFindings, activeId, levels, best, exit }: Props) {
+export function Markup({
+  project,
+  candles,
+  entryIndex,
+  shownCount,
+  exitColor,
+  findings,
+  scanned,
+  showFindings,
+  activeId,
+  levels,
+  best,
+  exit,
+  mine,
+  mineStatus,
+  mineFocus,
+}: Props) {
   const { width, height } = project
   const x = (index: number) => project.x(index) ?? -100
   const y = (price: number) => project.y(price) ?? -100
@@ -69,6 +90,21 @@ export function Markup({ project, candles, entryIndex, shownCount, exitColor, fi
               <ShapeView key={s} shape={shape} finding={activeScan} x={x} y={y} candles={candles} boxes={boxes} delay={0} scan />
             ))}
           </g>
+        )}
+
+        {/* Your own lines and named candles, in the pen color. Trendlines carry on into the replay. */}
+        {mine && (
+          <DrawingShapes
+            drawings={mine}
+            candles={candles}
+            x={x}
+            y={y}
+            width={width}
+            status={showFindings ? mineStatus : undefined}
+            extendTo={shownCount - 1}
+            focus={mineFocus}
+            opacity={activeId ? 0.3 : 1}
+          />
         )}
 
         {/* Your stop loss and take profit, across the replay zone. */}

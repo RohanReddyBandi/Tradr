@@ -40,10 +40,30 @@ The deployed site uses generated charts only, since the real-chart data isn't in
 - Or use the Sell / Skip / Buy buttons
 - After a buy or sell, set your position size (10% of your balance by default), stop
   loss, and take profit: drag the lines on the chart or type prices, then confirm
+- Before confirming you can also mark up the chart, like on a trading platform: draw
+  trendlines and support/resistance levels (their ends snap to nearby highs and lows),
+  tap candles to name their candlestick pattern, and name the chart pattern. It's
+  optional; the Breakdown grades whatever you drew (see "Your markup" below)
 - After the replay, the Breakdown shows the money you made or lost, and an accuracy
   score: how close your stop and target were to the best ones in hindsight
 - On desktop: arrow keys (→ buy, ← sell, ↑ skip), Escape to back out of a trade,
   Enter for the next card
+
+## Your markup
+
+Anything you draw on the trade setup chart gets graded in the Breakdown, in its own
+"Your markup" card, and stays on the replay chart in blue so you can watch it play out:
+
+- **Lines and levels** are judged the way traders judge them: how many times price
+  touched the line and turned (three touches is a line worth trusting, two is a start),
+  and how often price closed through it. Trendlines carry on to the right. A line that
+  sits on one of the chart's own lines (a neckline, a channel edge) counts as right, and
+  the card says whether it held during the replay.
+- **Named candles** are right if the candlestick detector sees that pattern on that
+  candle (any candle inside a multi-candle pattern counts). If you named candles but not
+  the signal at the decision point, the card points it out.
+- **The chart pattern** is right if it's the one the chart was built with (or the
+  scanner finds it, pointing the same way), and "close" if it's the same kind of pattern.
 
 ## Difficulty
 
@@ -149,6 +169,9 @@ separately and isn't cleared by Reset.
 | `src/game/useGame.ts` | Balance, deck, history, and what happens when you swipe |
 | `src/pages/SwipePage.tsx` | The card deck, buttons, arrow keys, and desktop session panel |
 | `src/pages/TradeSetupView.tsx` | Position size, stop loss, take profit, risk/reward |
+| `src/pages/MarkupTools.tsx`, `src/components/DrawingLayer.tsx` | The setup chart's drawing tools and your drawings |
+| `src/lib/userMarkup.ts` | Grades your lines, levels, named candles, and named pattern |
+| `src/pages/MarkupReviewCard.tsx` | The Breakdown's "Your markup" card |
 | `src/pages/BreakdownView.tsx` | Replay, result, grades, and explanation after each card |
 | `src/components/SwipeCard.tsx` | One draggable card and the swipe physics |
 | `src/components/CandleChart.tsx` | The black candlestick chart (TradingView Lightweight Charts) |
