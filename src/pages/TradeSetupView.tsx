@@ -21,7 +21,7 @@ interface Props {
   onCancel: () => void
 }
 
-const SIZE_CHOICES = [0.05, 0.1, 0.25] // quick-pick shares of your balance
+const SIZE_CHOICES = [0.05, 0.1, 0.25, 1] // quick-pick shares of your balance (1 = all of it)
 
 // "1,000.00" -> 1000. Commas and dollar signs are ignored.
 const parseAmount = (text: string) => Number(text.replace(/[$,\s]/g, ''))

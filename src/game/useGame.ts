@@ -19,6 +19,7 @@ export interface Review {
   card: ChartCard
   breakdown: Breakdown
   settled: boolean // has the P&L been added to the balance yet?
+  balanceBefore: number // your balance when you made the call
 }
 
 // ---------------------------------------------------------------------------
@@ -93,7 +94,7 @@ export function useGame() {
 
   // Grade the card, open its Breakdown, and move the deck along.
   function finish(card: ChartCard, decision: Decision, plan: TradePlan | null) {
-    setReview({ card, breakdown: analyze(card, decision, plan, stake), settled: false })
+    setReview({ card, breakdown: analyze(card, decision, plan, stake), settled: false, balanceBefore: balance })
     setDeck((cards) => [...cards.slice(1), nextCard(cards[cards.length - 1].number + 1)])
   }
 

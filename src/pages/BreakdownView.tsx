@@ -128,7 +128,7 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
             )}
           </div>
 
-          <ResultCard b={b} movePct={movePct} live={live} liveMissed={liveMissed} />
+          <ResultCard b={b} movePct={movePct} live={live} liveMissed={liveMissed} balanceBefore={review.balanceBefore} />
 
           <div
             className="relative h-[320px] rounded-3xl border border-edge bg-card px-2 pt-3 pb-2 lg:min-h-[360px] lg:flex-1"
@@ -423,7 +423,15 @@ function exitLine(result: TradeResult) {
   return `Held all ${FUTURE_CANDLES} days`
 }
 
-function ResultCard({ b, movePct, live, liveMissed }: { b: Breakdown; movePct: number; live: Live | null; liveMissed: Live | null }) {
+interface ResultProps {
+  b: Breakdown
+  movePct: number
+  live: Live | null
+  liveMissed: Live | null
+  balanceBefore: number
+}
+
+function ResultCard({ b, movePct, live, liveMissed, balanceBefore }: ResultProps) {
   // Skipped: show how far price moved, and what trading the setup would have done.
   if (!b.plan || !b.result || !live) {
     return (
@@ -454,6 +462,30 @@ function ResultCard({ b, movePct, live, liveMissed }: { b: Breakdown; movePct: n
       <div className={`mt-2 font-mono text-[40px] leading-none font-medium tabular-nums ${tone}`}>{amount}</div>
       <div className="mt-3 text-[13px] text-muted">
         {live.closed ? exitLine(b.result) : 'In the trade'} · {side} · {formatMoney(b.plan.size)} position
+      </div>
+      {live.closed && <MoneyMath plan={b.plan} result={b.result} balanceBefore={balanceBefore} />}
+    </div>
+  )
+}
+
+// The arithmetic behind the dollar amount, so you can check it: shares times
+// the move per share, and what that was as a share of your whole balance.
+function MoneyMath({ plan, result, balanceBefore }: { plan: TradePlan; result: TradeResult; balanceBefore: number }) {
+  const shares = plan.size / plan.entry
+  const perShare = (result.exit.price - plan.entry) * sign(plan.direction) // what each share made (or lost)
+  const onPosition = (perShare / plan.entry) * 100
+  const ofBalance = (plan.size / balanceBefore) * 100
+  const onBalance = (result.pnl / balanceBefore) * 100
+  const share = ofBalance >= 99.95 ? 'all of your balance' : `${ofBalance.toFixed(ofBalance < 10 ? 1 : 0)}% of your balance`
+  return (
+    <div className="mt-3 border-t border-edge pt-3 text-[13px] leading-relaxed text-muted">
+      <div className="font-mono">
+        {shares.toFixed(2)} shares × {formatSignedMoney(perShare)} a share ({plan.entry.toFixed(2)} → {result.exit.price.toFixed(2)}) ={' '}
+        <span className="text-neutral-100">{formatSignedMoney(result.pnl)}</span>
+      </div>
+      <div className="mt-1">
+        That's {formatSignedPercent(onPosition)} on the {formatMoney(plan.size)} you put in ({share}), or {formatSignedPercent(onBalance)} on
+        your whole balance.
       </div>
     </div>
   )
