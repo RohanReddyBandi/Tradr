@@ -177,7 +177,7 @@ export function Quiz({ quiz, onAnswer, onLearn }: Props) {
                 onClick={() => onLearn(answer.name)}
                 className="h-11 rounded-xl border border-neutral-800 px-4 text-[15px] text-soft transition-colors hover:border-neutral-600 hover:text-white"
               >
-                Learn it
+                Study it
               </button>
             </div>
           </motion.div>

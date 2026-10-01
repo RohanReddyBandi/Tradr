@@ -8,8 +8,8 @@ There's also a **Practice** tab with no money involved: mark the candlestick pat
 hidden in a chart, build a named candlestick by dragging candles into shape, or draw a
 chart pattern with your finger and see whether the scanner recognises it.
 
-And a **Learn** tab: eight short interactive lessons, a pattern quiz, and every
-pattern Tradr knows (see "Learn" below).
+And a **Learn** tab for learning to spot every pattern: what to look for, examples next
+to look-alikes that aren't it, and a drill to master each one (see "Learn" below).
 
 ## Run it
 
@@ -123,27 +123,27 @@ on that pattern.
 
 ## Learn
 
-- **Lessons**: eight short lessons, in order, each built around something to try:
-  1. Reading a candle: drag a candle's open, high, low, and close; make a green one, a
-     red one, a doji, and a hammer
-  2. Trends: call five charts uptrend, downtrend, or range, then see the swings labelled
-     HH, HL, LH, LL
-  3. Support and resistance: drag a line to the floor of a range (it counts the touches),
-     then play it forward and watch the old floor turn into a ceiling
-  4. Trendlines: draw one under an uptrend, graded like your trade markup
-  5. Location beats the candle: the same pattern twice, at a level and in the middle of
-     nowhere; pick the one to trade
-  6. Stops, targets, and risk : reward: fix a bad plan by dragging its stop and target,
-     with the win rate it needs and the same review the Breakdown gives
-  7. Position size and the maths of losing: the gain it takes to undo a loss, and a
-     losing streak at different amounts of risk
-  8. Good decisions still lose: run 50 trades at a win rate and risk : reward you choose,
-     then run the same odds again
-- **Patterns**: every chart and candlestick pattern, searchable and filterable. Each card
-  has a "What happens next?" button that plays a typical follow-through.
-- **Quiz**: name that pattern, four choices. Every chart is drawn fresh and checked by
-  the detectors, and any other answer the detectors also see is left out of the choices.
-  Keys 1 to 4 answer, Enter moves on.
+Learn is mainly about learning to spot the patterns:
+
+- **Patterns** (where Learn opens): every chart and candlestick pattern, searchable and
+  filterable, with how many you've mastered. Tap one to study it:
+  - **How to spot it**: a short checklist, in the order you'd check it, written to match
+    what the detector tests (`lib/spotting.ts`)
+  - what it means, the trap that catches people, and how traders usually act on it
+  - the example chart, with a "What happens next?" button that plays a typical follow-through
+  - **It is**: three fresh drawings of it, each a little different (stretched, taller or
+    flatter, key points nudged) and each checked by the detector
+  - **It isn't**: the look-alikes people confuse it with (its upside-down twin, and the
+    patterns it's often mistaken for), plus near misses: the same candles after the wrong
+    move, the pattern before it's finished, a body too thick, swings too small. Each comes
+    with the reason it isn't, and each is checked: the detector doesn't see the pattern there.
+  - **Is it or isn't it?**: an eight-chart drill, half of them the pattern and half not.
+    Seven right masters it. Keys: Y or → for yes, N or ← for no, Enter for next.
+  - its Build it / Draw it drill from the Practice tab, and how you've read it on swipe cards
+- **Quiz**: name that pattern from four choices, across all of them.
+- **Basics**: eight short interactive lessons on the ideas behind the patterns (reading a
+  candle, trends, support and resistance, trendlines, location, stops and targets, the
+  maths of losing, and why good decisions still lose).
 
 ## Saving
 
@@ -162,7 +162,7 @@ saved separately and aren't cleared by Reset.
 7. ✅ Real historical data: 270 real 90-day windows from 45 stocks and funds, mixed in with generated charts
 8. ✅ Practice tab: mark the candles, build a candlestick, draw a chart pattern
 9. ✅ Chart markup on the trade setup screen (trendlines, levels, named candles and patterns), graded in the Breakdown
-10. ✅ Learn tab: eight interactive lessons, a pattern quiz, and pattern cards that play forward
+10. ✅ Learn tab: a study page for every pattern (checklist, examples, look-alikes, and a drill to master it), a pattern quiz, and eight interactive lessons
 
 ## How a card works
 
@@ -240,6 +240,8 @@ saved separately and aren't cleared by Reset.
 | `src/pages/LearnPage.tsx`, `src/pages/learn/` | Learn tab: lessons, the pattern library, and the quiz |
 | `src/pages/learn/lessons/` | One widget per lesson |
 | `src/lib/lessons.ts`, `src/lib/quiz.ts` | The lessons' charts and arithmetic, and quiz questions |
+| `src/lib/spotting.ts`, `src/lib/patternStudy.ts` | Each pattern's spotting checklist, and its examples, look-alikes, and drill |
+| `src/pages/learn/PatternDetail.tsx`, `src/pages/learn/SpotDrill.tsx` | A pattern's study page and its "Is it or isn't it?" drill |
 | `src/game/useLearn.ts` | Lesson and quiz progress, saved in the browser |
 | `src/components/SvgChart.tsx`, `src/components/MiniChart.tsx` | Light SVG candlestick charts for lessons and pattern cards |
 | `src/lib/practice.ts` | The Practice drills' logic: planting patterns, grading marks, turning a drawing into candles |

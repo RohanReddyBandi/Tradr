@@ -3,13 +3,13 @@ import type { TradeRecord } from '../lib/stats'
 import { LIBRARY } from '../lib/library'
 import { LESSON_IDS } from '../lib/lessons'
 import type { PracticeProgress } from '../game/usePractice'
-import type { Learn } from '../game/useLearn'
+import { masteredKeys, type Learn } from '../game/useLearn'
 import type { PracticeMode } from './PracticePage'
 import { Lessons } from './learn/Lessons'
 import { PatternLibrary } from './learn/PatternLibrary'
 import { Quiz } from './learn/Quiz'
 
-type Section = 'lessons' | 'patterns' | 'quiz'
+type Section = 'patterns' | 'quiz' | 'lessons'
 
 interface Props {
   history: TradeRecord[]
@@ -21,20 +21,21 @@ interface Props {
 }
 
 const BLURB: Record<Section, string> = {
-  lessons: 'Eight short lessons, each with something to try: from reading one candle to why good trades still lose.',
-  patterns: 'Every pattern Tradr uses: what it looks like, what it usually signals, the trap that catches people, and what tends to come next.',
-  quiz: 'Name that pattern. Every chart is new, and the answer is checked by the same detectors that grade your trades.',
+  patterns: 'Learn to spot every pattern Tradr uses. Open one for what to look for, real examples next to look-alikes that aren’t it, and a drill to master it.',
+  quiz: 'Name that pattern, across all of them. Every chart is new, and the answer is checked by the same detectors that grade your trades.',
+  lessons: 'The basics behind the patterns: eight short lessons, from reading one candle to why good trades still lose.',
 }
 
 export function LearnPage({ history, focus, progress, learn, onPractice, onLearn }: Props) {
-  // Opening Learn on a pattern (from a Breakdown or Stats) goes straight to its card.
-  const [section, setSection] = useState<Section>(focus ? 'patterns' : 'lessons')
+  // Learn opens on the patterns (and straight onto one, from a Breakdown or Stats).
+  const [section, setSection] = useState<Section>('patterns')
   const lessonsDone = learn.progress.lessons.filter((id) => LESSON_IDS.includes(id)).length
+  const mastered = masteredKeys(learn.progress).length
 
   const tabs: { id: Section; label: string; count: string }[] = [
-    { id: 'lessons', label: 'Lessons', count: `${lessonsDone}/${LESSON_IDS.length}` },
-    { id: 'patterns', label: 'Patterns', count: `${LIBRARY.length}` },
+    { id: 'patterns', label: 'Patterns', count: `${mastered}/${LIBRARY.length}` },
     { id: 'quiz', label: 'Quiz', count: learn.progress.quiz.best ? `best ${learn.progress.quiz.best}` : '' },
+    { id: 'lessons', label: 'Basics', count: `${lessonsDone}/${LESSON_IDS.length}` },
   ]
 
   return (
@@ -61,9 +62,18 @@ export function LearnPage({ history, focus, progress, learn, onPractice, onLearn
         </div>
 
         <div className="mt-6">
-          {section === 'lessons' && <Lessons finished={learn.progress.lessons} onFinish={learn.finishLesson} />}
-          {section === 'patterns' && <PatternLibrary history={history} focus={focus} progress={progress} onPractice={onPractice} />}
+          {section === 'patterns' && (
+            <PatternLibrary
+              history={history}
+              focus={focus}
+              progress={progress}
+              drills={learn.progress.drills}
+              onDrillDone={learn.recordDrill}
+              onPractice={onPractice}
+            />
+          )}
           {section === 'quiz' && <Quiz quiz={learn.progress.quiz} onAnswer={learn.recordAnswer} onLearn={onLearn} />}
+          {section === 'lessons' && <Lessons finished={learn.progress.lessons} onFinish={learn.finishLesson} />}
         </div>
       </div>
     </div>

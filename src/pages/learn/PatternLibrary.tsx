@@ -1,22 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { Bias } from '../../types'
-import { GROUPS, LIBRARY, findEntry, type LibraryEntry } from '../../lib/library'
+import { GROUPS, LIBRARY, entryByKey, findEntry, type LibraryEntry } from '../../lib/library'
 import { candleExample, chartExample } from '../../lib/examples'
-import { followThrough } from '../../lib/lessons'
 import { computeStats, type TradeRecord } from '../../lib/stats'
 import { DRAWABLE, PRACTICE_CANDLES } from '../../lib/practice'
-import { SvgChart } from '../../components/SvgChart'
-import { ShapeLayer } from '../../components/ChartLayers'
-import { shapePrices } from '../../components/chartScale'
+import { DRILL_ROUNDS, MASTERED } from '../../lib/patternStudy'
+import { MiniChart } from '../../components/MiniChart'
 import { STARTING_BALANCE } from '../../game/useGame'
 import type { PracticeProgress } from '../../game/usePractice'
+import type { LearnProgress } from '../../game/useLearn'
 import type { PracticeMode } from '../PracticePage'
-import { COLORS } from '../../theme'
+import { PatternDetail } from './PatternDetail'
 
 interface Props {
   history: TradeRecord[]
-  focus: string | null // a pattern name to jump to (from a Breakdown or Stats)
+  focus: string | null // a pattern name to open (from a Breakdown, Stats, or the quiz)
   progress: PracticeProgress
+  drills: LearnProgress['drills']
+  onDrillDone: (key: string, score: number) => void
   onPractice: (mode: PracticeMode, key: string) => void
 }
 
@@ -31,52 +32,98 @@ const BIAS_STYLE: Record<Bias, string> = {
   neutral: 'border-neutral-700 text-soft',
 }
 
-// Every pattern Tradr knows, as cards you can filter, search, and play forward.
-export function PatternLibrary({ history, focus, progress, onPractice }: Props) {
+// Every pattern Tradr knows, as cards to filter and search. Tap one to study
+// it: examples, look-alikes that aren't it, and a drill to master it.
+export function PatternLibrary({ history, focus, progress, drills, onDrillDone, onPractice }: Props) {
   const focused = focus ? findEntry(focus) : undefined
-  // Opening Learn on a pattern starts on its tab, highlighted, scrolled into view.
   const [kind, setKind] = useState<Kind>(focused?.kind ?? 'chart')
   const [group, setGroup] = useState<string | null>(null) // null shows every group
   const [search, setSearch] = useState('')
-  const [highlight, setHighlight] = useState<string | null>(focused?.key ?? null)
+  const [openKey, setOpenKey] = useState<string | null>(focused?.key ?? null)
+  const listScroll = useRef(0) // where the list was scrolled to before a pattern opened
   const { patterns } = useMemo(() => computeStats(history, STARTING_BALANCE), [history])
 
-  useEffect(() => {
-    if (focused) requestAnimationFrame(() => document.getElementById(`pattern-${focused.key}`)?.scrollIntoView({ block: 'center' }))
-  }, [focused])
+  const scroller = () => document.getElementById('learn-scroll')
 
-  // Patterns you've seen at least twice and get right less than 60% of the time.
+  function open(key: string) {
+    if (!openKey) listScroll.current = scroller()?.scrollTop ?? 0
+    setOpenKey(key)
+    requestAnimationFrame(() => scroller()?.scrollTo({ top: 0 }))
+  }
+
+  function close() {
+    setOpenKey(null)
+    requestAnimationFrame(() => scroller()?.scrollTo({ top: listScroll.current }))
+  }
+
+  // Patterns you've seen at least twice on swipe cards and get right less than 60% of the time.
   const weakSpots = [...patterns.values()]
     .filter((p) => p.seen >= 2 && p.correct / p.seen < 0.6 && findEntry(p.name))
     .sort((a, b) => a.correct / a.seen - b.correct / b.seen)
     .slice(0, 6)
 
-  function jumpTo(name: string) {
-    const entry = findEntry(name)
-    if (!entry) return
-    setKind(entry.kind)
-    setGroup(null)
-    setSearch('')
-    setHighlight(entry.key)
-    requestAnimationFrame(() => document.getElementById(`pattern-${entry.key}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
-  }
-
   // A search looks through every pattern, of both kinds.
   const query = search.trim().toLowerCase()
   const entries = query
-    ? LIBRARY.filter((e) => e.name.toLowerCase().includes(query) || e.signals.toLowerCase().includes(query))
+    ? LIBRARY.filter((e) => e.name.toLowerCase().includes(query) || e.signals.toLowerCase().includes(query) || e.group.toLowerCase().includes(query))
     : LIBRARY.filter((e) => e.kind === kind && (!group || e.group === group))
+
+  const practiceFor = (entry: LibraryEntry) =>
+    entry.kind === 'candle' && BUILDABLE.has(entry.key)
+      ? { label: 'Build it', done: progress.built.includes(entry.key), onClick: () => onPractice('build', entry.key) }
+      : entry.kind === 'chart' && DRAWABLE_KEYS.has(entry.key)
+        ? { label: 'Draw it', done: progress.drawn.includes(entry.key), onClick: () => onPractice('draw', entry.key) }
+        : null
+
+  const opened = openKey ? entryByKey(openKey) : undefined
+  if (opened) {
+    // Previous and next follow the list you opened it from (or its own kind, if it isn't in that list).
+    const list = entries.some((e) => e.key === opened.key) ? entries : LIBRARY.filter((e) => e.kind === opened.kind)
+    const index = list.findIndex((e) => e.key === opened.key)
+    return (
+      <PatternDetail
+        key={opened.key}
+        entry={opened}
+        position={{ index, count: list.length }}
+        prev={list[index - 1] ?? null}
+        next={list[index + 1] ?? null}
+        drill={drills[opened.key]}
+        inTrades={patterns.get(opened.name)}
+        practice={practiceFor(opened)}
+        onOpen={open}
+        onBack={close}
+        onDrillDone={(score) => onDrillDone(opened.key, score)}
+      />
+    )
+  }
+
+  const mastered = LIBRARY.filter((e) => (drills[e.key]?.best ?? 0) >= MASTERED).length
 
   return (
     <div>
+      <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl border border-edge bg-card px-4 py-3.5">
+        <div className="min-w-[220px] flex-1">
+          <div className="flex items-baseline gap-2">
+            <span className="font-mono text-[22px] leading-none">{mastered}</span>
+            <span className="text-[14px] text-soft">of {LIBRARY.length} patterns mastered</span>
+          </div>
+          <div className="mt-2 h-1.5 rounded-full bg-neutral-800" aria-hidden="true">
+            <div className="h-full rounded-full bg-up transition-[width] duration-500" style={{ width: `${(mastered / LIBRARY.length) * 100}%` }} />
+          </div>
+        </div>
+        <p className="max-w-sm text-[13.5px] leading-relaxed text-muted">
+          Open a pattern to learn what to look for and see what is and isn't it, then pass its {DRILL_ROUNDS}-chart drill.
+        </p>
+      </div>
+
       {weakSpots.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-[13px] font-semibold tracking-[0.08em] text-muted uppercase">Your weak spots</h2>
+          <h2 className="text-[13px] font-semibold tracking-[0.08em] text-muted uppercase">Your weak spots on swipe cards</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {weakSpots.map((p) => (
               <button
                 key={p.name}
-                onClick={() => jumpTo(p.name)}
+                onClick={() => open(findEntry(p.name)!.key)}
                 className="flex min-h-11 items-center gap-2 rounded-full border border-amber/30 bg-amber/[0.06] px-4 text-[15px] text-neutral-100 hover:border-amber/60"
               >
                 {p.name}
@@ -149,134 +196,49 @@ export function PatternLibrary({ history, focus, progress, onPractice }: Props) 
         </p>
       )}
 
-      <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {entries.map((entry) => {
-          const practice =
-            entry.kind === 'candle' && BUILDABLE.has(entry.key)
-              ? { label: 'Build it', mode: 'build' as const, done: progress.built.includes(entry.key) }
-              : entry.kind === 'chart' && DRAWABLE_KEYS.has(entry.key)
-                ? { label: 'Draw it', mode: 'draw' as const, done: progress.drawn.includes(entry.key) }
-                : null
-          return (
-            <PatternCard
-              key={entry.key}
-              entry={entry}
-              highlighted={highlight === entry.key}
-              record={patterns.get(entry.name)}
-              practice={practice && { ...practice, onClick: () => onPractice(practice.mode, entry.key) }}
-            />
-          )
-        })}
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {entries.map((entry) => (
+          <PatternCard key={entry.key} entry={entry} drill={drills[entry.key]} onOpen={() => open(entry.key)} />
+        ))}
       </div>
     </div>
   )
 }
 
-interface CardProps {
-  entry: LibraryEntry
-  highlighted: boolean
-  record?: { seen: number; correct: number }
-  practice: { label: string; done: boolean; onClick: () => void } | null // "Build it" / "Draw it"
-}
-
-function PatternCard({ entry, highlighted, record, practice }: CardProps) {
+function PatternCard({ entry, drill, onOpen }: { entry: LibraryEntry; drill?: { best: number }; onOpen: () => void }) {
   const example = useMemo(() => (entry.kind === 'candle' ? candleExample(entry.key) : chartExample(entry.key)), [entry])
+  const mastered = (drill?.best ?? 0) >= MASTERED
   return (
-    <article
+    <button
+      type="button"
+      onClick={onOpen}
       id={`pattern-${entry.key}`}
-      className={`scroll-mt-6 rounded-3xl border bg-card p-4 transition-colors ${highlighted ? 'border-neutral-400' : 'border-edge'}`}
+      className={`group flex flex-col rounded-3xl border bg-card p-3.5 text-left transition-colors hover:border-neutral-600 ${mastered ? 'border-up/25' : 'border-edge'}`}
     >
-      {example && <PlayOut entry={entry} example={example} />}
-      <div className="mt-4 flex items-start justify-between gap-3">
-        <h3 className="text-[18px] leading-snug font-semibold tracking-tight">{entry.name}</h3>
+      <div className="w-full rounded-2xl bg-base/60 px-1 py-2">
+        {example && <MiniChart candles={example.candles} shapes={example.shapes} label={`Example of a ${entry.name.toLowerCase()}`} />}
+      </div>
+      <div className="mt-3 flex w-full items-start justify-between gap-3">
+        <h3 className="text-[17px] leading-snug font-semibold tracking-tight">{entry.name}</h3>
         <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${BIAS_STYLE[entry.bias]}`}>{entry.bias}</span>
       </div>
-      <p className="mt-1 text-sm text-muted">Usually signals: {entry.signals.toLowerCase()}</p>
-      <p className="mt-3 text-[15px] leading-relaxed text-neutral-200">{entry.meaning}</p>
-      <p className="mt-3 text-sm leading-relaxed text-soft">
-        <span className="font-semibold text-amber">The trap: </span>
-        {entry.trap}
-      </p>
-      {(record || practice) && (
-        <div className="mt-3 flex min-h-11 items-center justify-between gap-3 border-t border-edge pt-3">
-          <span className="font-mono text-xs text-muted">{record && `You: ${record.correct}/${record.seen} right`}</span>
-          {practice && (
-            <button
-              onClick={practice.onClick}
-              className="h-10 shrink-0 rounded-xl border border-neutral-800 px-3.5 text-sm text-soft transition-colors hover:border-neutral-600 hover:text-white"
-            >
-              {practice.label}
-              {practice.done && <span className="ml-1.5 text-up">✓</span>}
-            </button>
+      <p className="mt-1 line-clamp-2 text-[14px] leading-relaxed text-soft">{entry.meaning}</p>
+      <div className="mt-auto flex w-full items-center justify-between gap-3 pt-3">
+        <span className="text-[13px]">
+          {mastered ? (
+            <span className="font-medium text-up">✓ Mastered</span>
+          ) : drill ? (
+            <span className="font-mono text-muted">
+              Best {drill.best}/{DRILL_ROUNDS}
+            </span>
+          ) : (
+            <span className="text-dim">Not practised yet</span>
           )}
-        </div>
-      )}
-    </article>
-  )
-}
-
-// The example chart, with room on the right for what usually comes next.
-// "What happens next?" plays a typical follow-through into that space.
-function PlayOut({ entry, example }: { entry: LibraryEntry; example: NonNullable<ReturnType<typeof chartExample>> }) {
-  const next = useMemo(() => followThrough(example, entry.bias), [example, entry.bias])
-  const all = useMemo(() => [...example.candles, ...next], [example, next])
-  const range = useMemo(() => {
-    const prices = [...all.flatMap((c) => [c.low, c.high]), ...shapePrices(example.shapes)]
-    const low = Math.min(...prices)
-    const high = Math.max(...prices)
-    return { min: low - (high - low) * 0.06, max: high + (high - low) * 0.06 }
-  }, [all, example.shapes])
-  const [shown, setShown] = useState(0) // follow-through candles on screen
-  const [started, setStarted] = useState(false)
-  const played = shown >= next.length
-  const playing = started && !played
-
-  useEffect(() => {
-    if (!playing) return
-    const timer = setTimeout(() => setShown((n) => n + 1), 70)
-    return () => clearTimeout(timer)
-  }, [playing, shown])
-
-  const n = example.candles.length
-  return (
-    <div className="rounded-2xl bg-base/60 px-1 py-2">
-      <SvgChart
-        candles={all.slice(0, n + shown)}
-        slots={all.length}
-        range={range}
-        height={128}
-        label={`Example of a ${entry.name.toLowerCase()}${shown ? ', then a typical follow-through' : ''}`}
-      >
-        {(scale, width) => (
-          <g>
-            <ShapeLayer shapes={example.shapes} candles={example.candles} scale={scale} />
-            <line x1={scale.x(n - 0.5)} x2={scale.x(n - 0.5)} y1={4} y2={124} stroke="#3a3a3a" strokeDasharray="2 3" />
-            {shown === 0 && (
-              <text x={(scale.x(n - 0.5) + width) / 2} y={72} textAnchor="middle" fontSize={22} fill="#3d3d3d">
-                ?
-              </text>
-            )}
-            {played && (
-              <text x={width - 6} y={14} textAnchor="end" fontSize={10} fill={COLORS.axisText}>
-                Typical follow-through
-              </text>
-            )}
-          </g>
-        )}
-      </SvgChart>
-      <div className="flex justify-end px-1 pt-1">
-        <button
-          type="button"
-          onClick={() => {
-            setShown(0)
-            setStarted(!played) // play, or (once played) reset
-          }}
-          disabled={playing}
-          className="h-9 rounded-lg px-2.5 text-[13px] text-muted transition-colors hover:bg-neutral-900 hover:text-white disabled:opacity-50"
-        >
-          {played ? 'Reset' : playing ? 'Playing…' : 'What happens next? ▸'}
-        </button>
+        </span>
+        <span className="text-[13.5px] font-medium text-soft transition-colors group-hover:text-white">
+          Study <span aria-hidden="true">→</span>
+        </span>
       </div>
-    </div>
+    </button>
   )
 }
