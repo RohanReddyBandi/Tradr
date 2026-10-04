@@ -89,7 +89,7 @@ export function TradeLines({ project, direction, entry, stop, target, range, onC
             onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
             onPointerMove={(e) => dragTo(l.level, e)}
             onKeyDown={(e) => nudge(l.level, e)}
-            className="pointer-events-auto absolute left-0 cursor-ns-resize touch-none rounded-sm"
+            className="pointer-events-auto absolute left-0 cursor-ns-resize touch-none rounded-sm select-none"
             style={{ top: lineY - HANDLE_HEIGHT / 2, width, height: HANDLE_HEIGHT }}
           >
             <Tag label={l.tag} color={l.color} top={HANDLE_HEIGHT / 2} left={left} />

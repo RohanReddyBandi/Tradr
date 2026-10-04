@@ -41,14 +41,19 @@ body {
   overscroll-behavior: none;
 }
 
-/* Keyboard focus ring that fits the dark theme. */
-:focus-visible {
-  outline: 2px solid #5c5c5c;
-  outline-offset: 2px;
-}
+/* In the base layer, so an element's own classes win: text fields set
+   outline-none because their box lights up instead (a second ring inside
+   the box looked like a stray rectangle). */
+@layer base {
+  /* Keyboard focus ring that fits the dark theme. */
+  :focus-visible {
+    outline: 2px solid #5c5c5c;
+    outline-offset: 2px;
+  }
 
-/* Clicking a focusable chart (the Practice drills) shouldn't draw the
-   browser's own ring; keyboard focus still gets the one above. */
-:focus:not(:focus-visible) {
-  outline: none;
+  /* Clicking a focusable chart shouldn't draw the browser's own ring;
+     keyboard focus still gets the one above. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
 }

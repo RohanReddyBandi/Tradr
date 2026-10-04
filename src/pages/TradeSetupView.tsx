@@ -9,7 +9,7 @@ import { CandleSheet, PatternSheet, ToolBar, ToolHint, YourRead } from './Markup
 import type { ChartMarkup, Drawing } from '../lib/userMarkup'
 import {
   DEFAULT_POSITION_SHARE,
-  defaultPlan,
+  openingPlan,
   planProblem,
   riskAndReward,
   type Direction,
@@ -43,8 +43,9 @@ function chartRange(candles: Candle[], levels: number[]) {
 export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props) {
   const { card } = pending
   const [direction, setDirection] = useState<Direction>(pending.direction)
+  // The stop and target start far out at the chart's edges: where they go is your call.
   const start = useMemo(
-    () => defaultPlan(card.candles, pending.direction, balance * DEFAULT_POSITION_SHARE),
+    () => openingPlan(card.candles, pending.direction, balance * DEFAULT_POSITION_SHARE),
     [card, pending.direction, balance],
   )
 
@@ -52,6 +53,7 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
   const [sizeText, setSizeText] = useState(asAmount(start.size))
   const [stopText, setStopText] = useState(start.stop.toFixed(2))
   const [targetText, setTargetText] = useState(start.target.toFixed(2))
+  const [placed, setPlaced] = useState({ stop: false, target: false }) // moved from where they started?
 
   // Your markup: lines, levels, named candles, and the chart pattern.
   const [tool, setTool] = useState<Tool>('trade')
@@ -90,6 +92,7 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
   }
 
   function typeLevel(level: 'stop' | 'target', text: string) {
+    setPlaced((p) => ({ ...p, [level]: true }))
     if (level === 'stop') setStopText(text)
     else setTargetText(text)
     const price = parseAmount(text)
@@ -105,11 +108,12 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [onCancel, sheet])
 
-  // Switching between long and short flips the stop and target to the other side.
+  // Switching between long and short sends the stop and target back out, on their new sides.
   function chooseDirection(next: Direction) {
     if (next === direction) return
-    const flipped = defaultPlan(card.candles, next, plan.size || start.size)
+    const flipped = openingPlan(card.candles, next, plan.size || start.size)
     setDirection(next)
+    setPlaced({ stop: false, target: false })
     setStopText(flipped.stop.toFixed(2))
     setTargetText(flipped.target.toFixed(2))
     fitLevels(flipped.stop, flipped.target)
@@ -167,7 +171,10 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
                       stop={plan.stop}
                       target={plan.target}
                       range={range}
-                      onChange={(level, price) => (level === 'stop' ? setStopText : setTargetText)(price.toFixed(2))}
+                      onChange={(level, price) => {
+                        setPlaced((p) => ({ ...p, [level]: true }))
+                        ;(level === 'stop' ? setStopText : setTargetText)(price.toFixed(2))
+                      }}
                     />
                     <DrawingLayer
                       project={project}
@@ -264,6 +271,12 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
             </div>
 
             <div className="grid grid-cols-2 gap-3">
+              {!(placed.stop && placed.target) && (
+                <p className="col-span-2 -mb-1 text-[14px] leading-relaxed text-soft">
+                  Your stop loss and take profit start far out. Drag {placed.stop ? 'the TP line' : placed.target ? 'the SL line' : 'the SL and TP lines'} to
+                  where you&rsquo;d really get out.
+                </p>
+              )}
               <PriceInput id="stop" label="Stop loss" value={stopText} onChange={(v) => typeLevel('stop', v)} tone="text-down" />
               <PriceInput id="target" label="Take profit" value={targetText} onChange={(v) => typeLevel('target', v)} tone="text-up" />
             </div>

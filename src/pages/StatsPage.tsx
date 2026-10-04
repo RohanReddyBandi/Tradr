@@ -189,6 +189,11 @@ export function StatsPage({ game, practice, learn, onPlay, onLearn }: Props) {
                 share={learn.mixed.played ? learn.mixed.points / learn.mixed.played : null}
               />
               <ScoreRow
+                name="Stops and targets placed"
+                detail={learn.exits.played ? `${learn.exits.played} charts · average ${Math.round((learn.exits.points / learn.exits.played) * 100)}%` : 'not tried yet'}
+                share={learn.exits.played ? learn.exits.points / learn.exits.played : null}
+              />
+              <ScoreRow
                 name="Candlesticks built"
                 detail={`${practice.built.length}/${PRACTICE_CANDLES.length}`}
                 share={practice.built.length / PRACTICE_CANDLES.length}

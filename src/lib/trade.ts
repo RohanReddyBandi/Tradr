@@ -62,6 +62,27 @@ export function defaultPlan(candles: Candle[], direction: Direction, size: numbe
   }
 }
 
+// Where the stop and target START on the setup screen: out at the edges of
+// the chart, at least OPENING_DISTANCE normal days (ATR) from the entry. They
+// aren't a suggestion: they're parked out of the way so you drag them to
+// your own levels.
+export const OPENING_DISTANCE = 6
+
+export function openingPlan(candles: Candle[], direction: Direction, size: number): TradePlan {
+  const entry = candles[candles.length - 1].close
+  const atr = averageTrueRange(candles)
+  const top = Math.max(...candles.map((c) => c.high), entry + OPENING_DISTANCE * atr)
+  const bottom = Math.max(0.01, Math.min(...candles.map((c) => c.low), entry - OPENING_DISTANCE * atr))
+  const long = direction === 'long'
+  return {
+    direction,
+    entry,
+    size: cents(size),
+    stop: cents(long ? bottom : top),
+    target: cents(long ? top : bottom),
+  }
+}
+
 // Dollars lost if the stop is hit, and dollars won if the target is hit.
 // You buy (size / entry) shares, and each share moves by the price difference.
 export function riskAndReward(plan: TradePlan) {

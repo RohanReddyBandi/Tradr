@@ -10,6 +10,7 @@ import { findEntry } from '../lib/library'
 import { COLORS } from '../theme'
 import { formatMoney, formatSignedMoney, formatSignedPercent } from '../format'
 import type { BestLevels } from '../lib/bestLevels'
+import { EXITS_FOCUS } from '../lib/exits'
 import { riskAndReward, sign, type TradePlan, type TradeResult } from '../lib/trade'
 import type { Candle, Finding } from '../types'
 import { MarkupReviewCard } from './MarkupReviewCard'
@@ -238,6 +239,13 @@ export function BreakdownView({ review, onSettle, onNext, onLearn }: Props) {
                 <Reveal>
                   <SectionTitle>Your stop and target</SectionTitle>
                   <p className="mt-2 text-[16px] leading-relaxed text-neutral-200">{b.riskText}</p>
+                  <button
+                    type="button"
+                    onClick={() => onLearn(EXITS_FOCUS)}
+                    className="mt-2 -ml-1 flex h-10 items-center gap-1.5 px-1 text-[14px] text-muted underline decoration-neutral-700 underline-offset-4 hover:text-white"
+                  >
+                    Learn where stops and targets go <span aria-hidden="true">→</span>
+                  </button>
                 </Reveal>
               )}
 

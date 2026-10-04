@@ -6,7 +6,8 @@ sense. Fake money only.
 
 A **Learn** tab teaches every pattern, charts labelled the way traders mark them up, and
 tests you on realistic charts where you call the trend, name the pattern, draw its lines,
-read the signal candle, and make the call (see "Learn" below).
+read the signal candle, and make the call. It also teaches where a stop loss and take
+profit go, with a drill to practice placing them (see "Learn" below).
 
 ## Run it
 
@@ -39,7 +40,9 @@ The deployed site uses generated charts only, since the real-chart data isn't in
 - Drag the card right to **buy**, left to **sell**, up to **skip**
 - Or use the Sell / Skip / Buy buttons
 - After a buy or sell, set your position size (10% of your balance by default), stop
-  loss, and take profit: drag the lines on the chart or type prices, then confirm
+  loss, and take profit: drag the lines on the chart or type prices, then confirm. The
+  stop and target start parked far out at the chart's edges (at least 6 normal days'
+  range from the entry), so where they go is always your call
 - Before confirming you can also mark up the chart, like on a trading platform: draw
   trendlines and support/resistance levels (their ends snap to nearby highs and lows),
   tap candles to name their candlestick pattern, and name the chart pattern. It's
@@ -123,6 +126,20 @@ Learn is all about the patterns, in one place:
   - **Find it in the wild**: practice on three full, realistic charts (the same kind the
     swipe cards use) with the pattern in them. Averaging 80% masters it.
 - **Practice scenarios**: the same thing with any pattern and no hints.
+- **Stop loss & take profit**: a lesson on placing exits (`lib/exits.ts`):
+  - a labelled example: the stop just past the swing low, the target just short of
+    resistance, drawn as risk and reward boxes, with **Play it out**
+  - where each one goes and why, risk : reward, and the trap of moving your stop
+  - **Why the ratio matters**: pick a ratio and a win rate and watch 100 trades play
+    out, next to the win rate you'd need to break even
+  - **Size the trade from the stop**: risk 0.5 to 2% of your balance and see how many
+    shares that stop allows
+  - **Where it goes wrong**: a stop too tight, a target too greedy, and a stop too wide,
+    each on a chart where the mistake visibly cost money (fixed seeds, checked by tests)
+  - **Place the exits**: a drill of five setups where you know the direction. The stop and
+    target start far out; drag them into place, get graded on what you could know at the
+    time (the same rules as the Breakdown's stop and target review), then watch the month
+    play out next to the textbook levels
 
 Each scenario is read the way a trader reads a chart, one question at a time
 (`lib/scenarios.ts`):
@@ -147,7 +164,7 @@ marker or another label.
 
 Your balance and history are saved in this browser (localStorage), so they survive a
 reload. Reset on the Stats page starts over at $10,000. Learn progress (mastery, scenarios,
-and what you've built and drawn) is saved separately and isn't cleared by Reset.
+the exits drill, and what you've built and drawn) is saved separately and isn't cleared by Reset.
 
 ## Build status
 
@@ -161,6 +178,7 @@ and what you've built and drawn) is saved separately and isn't cleared by Reset.
 8. ✅ Build a candlestick and draw a chart pattern yourself, on each pattern's page
 9. ✅ Chart markup on the trade setup screen (trendlines, levels, named candles and patterns), graded in the Breakdown
 10. ✅ Learn tab: a study page for every pattern in a labelled textbook chart style, and real-world scenario practice to master each one
+11. ✅ Stop loss and take profit lesson and drill; the trade setup starts both levels far out so you place them yourself
 
 ## How a card works
 
@@ -241,7 +259,8 @@ and what you've built and drawn) is saved separately and isn't cleared by Reset.
 | `src/lib/scenarios.ts`, `src/pages/learn/ScenarioPractice.tsx` | Real-world practice: realistic charts, the questions, and grading |
 | `src/lib/annotate.ts`, `src/components/AnnotatedChart.tsx` | The Learn chart style: labelled support, resistance, swing points, targets, volume |
 | `src/pages/learn/PatternDetail.tsx` | A pattern's study page |
-| `src/game/useLearn.ts` | Pattern mastery and scenario scores, saved in the browser |
+| `src/game/useLearn.ts` | Pattern mastery, scenario and exits-drill scores, saved in the browser |
+| `src/lib/exits.ts`, `src/pages/learn/Exit*.tsx` | The stop loss and take profit lesson, its charts, and the drill |
 | `src/components/MiniChart.tsx` | A small static candlestick chart |
 | `src/lib/practice.ts` | Building and drawing: the starting candles, and turning a drawing into candles |
 | `src/game/usePractice.ts` | The patterns you've built and drawn, saved in the browser |

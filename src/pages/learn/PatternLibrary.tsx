@@ -17,7 +17,9 @@ interface Props {
   practice: Practice // what you've built and drawn
   scenarios: LearnProgress['scenarios']
   onRunDone: (key: string, average: number) => void
+  exits: LearnProgress['exits']
   onMixed: () => void // open the mixed scenarios
+  onExits: () => void // open the stop loss and take profit lesson
 }
 
 type Kind = 'chart' | 'candle'
@@ -30,7 +32,7 @@ const BIAS_STYLE: Record<Bias, string> = {
 
 // Every pattern Tradr knows, as cards to filter and search. Tap one to study
 // it: examples, look-alikes that aren't it, and a drill to master it.
-export function PatternLibrary({ intro, history, focus, practice, scenarios, onRunDone, onMixed }: Props) {
+export function PatternLibrary({ intro, history, focus, practice, scenarios, exits, onRunDone, onMixed, onExits }: Props) {
   const focused = focus ? findEntry(focus) : undefined
   const [kind, setKind] = useState<Kind>(focused?.kind ?? 'chart')
   const [group, setGroup] = useState<string | null>(null) // null shows every group
@@ -93,7 +95,7 @@ export function PatternLibrary({ intro, history, focus, practice, scenarios, onR
   return (
     <div>
       {intro}
-      <div className="mb-6 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div className="mb-6 grid gap-3 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.1fr)_minmax(0,1.1fr)]">
         <div className="rounded-2xl border border-edge bg-card px-4 py-3.5">
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-[22px] leading-none">{mastered}</span>
@@ -117,6 +119,23 @@ export function PatternLibrary({ intro, history, focus, practice, scenarios, onR
             </span>
           </span>
           <span aria-hidden="true" className="text-[22px] text-up transition-transform group-hover:translate-x-0.5">
+            →
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={onExits}
+          className="group flex items-center justify-between gap-4 rounded-2xl border border-edge bg-card px-5 py-4 text-left transition-colors hover:border-neutral-600"
+        >
+          <ExitsGlyph />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] font-semibold tracking-[0.08em] text-muted uppercase">
+              Lesson{exits.best > 0 && <span className="ml-1.5 font-mono tracking-normal normal-case">· best {Math.round(exits.best * 100)}%</span>}
+            </span>
+            <span className="mt-1 block text-[17px] font-semibold text-white">Stop loss & take profit</span>
+            <span className="mt-0.5 block text-[13.5px] leading-relaxed text-soft">Where your exits go, why the ratio matters, and a drill to place them.</span>
+          </span>
+          <span aria-hidden="true" className="text-[22px] text-soft transition-transform group-hover:translate-x-0.5">
             →
           </span>
         </button>
@@ -163,7 +182,7 @@ export function PatternLibrary({ intro, history, focus, practice, scenarios, onR
             </button>
           ))}
         </div>
-        <label className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-2xl border border-edge bg-card px-4 focus-within:border-neutral-500 sm:max-w-xs">
+        <label className="flex h-12 min-w-[240px] flex-1 items-center gap-2.5 rounded-2xl border border-edge bg-card px-4 transition-colors focus-within:border-neutral-600 sm:max-w-xs">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" className="shrink-0 text-muted" aria-hidden="true">
             <circle cx="7" cy="7" r="5" />
             <path d="M11 11l3.5 3.5" strokeLinecap="round" />
@@ -253,5 +272,18 @@ function PatternCard({ entry, mastery, onOpen }: { entry: LibraryEntry; mastery?
         </div>
       </div>
     </button>
+  )
+}
+
+// A tiny position tool: entry, with the take profit above and the stop below.
+function ExitsGlyph() {
+  return (
+    <svg width="40" height="44" viewBox="0 0 40 44" aria-hidden="true" className="shrink-0">
+      <rect x="2" y="4" width="36" height="20" rx="2" fill="#3ddc97" opacity="0.14" />
+      <rect x="2" y="24" width="36" height="12" rx="2" fill="#ef5b52" opacity="0.14" />
+      <line x1="2" x2="38" y1="4" y2="4" stroke="#3ddc97" strokeWidth="1.5" strokeDasharray="4 3" />
+      <line x1="2" x2="38" y1="36" y2="36" stroke="#ef5b52" strokeWidth="1.5" strokeDasharray="4 3" />
+      <line x1="2" x2="38" y1="24" y2="24" stroke="#d9d9d9" strokeWidth="1.5" />
+    </svg>
   )
 }

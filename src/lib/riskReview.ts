@@ -23,26 +23,63 @@ export interface StopTargetReview {
 
 const SWING_LOOKBACK = 10 // candles to look back for the recent swing point
 
+export interface ChartSpot {
+  index: number // which candle
+  price: number
+}
+
 // Local peaks: candles whose high beats the `span` candles on each side.
-function swingHighs(candles: Candle[], span = 3): number[] {
-  const peaks: number[] = []
+function swingHighs(candles: Candle[], span = 3): ChartSpot[] {
+  const peaks: ChartSpot[] = []
   for (let i = span; i < candles.length - span; i++) {
     const neighbours = [...candles.slice(i - span, i), ...candles.slice(i + 1, i + span + 1)]
-    if (neighbours.every((c) => c.high <= candles[i].high)) peaks.push(candles[i].high)
+    if (neighbours.every((c) => c.high <= candles[i].high)) peaks.push({ index: i, price: candles[i].high })
   }
   return peaks
 }
 
 // Local dips, found by flipping the chart upside down and looking for peaks.
 const swingLows = (candles: Candle[], span = 3) =>
-  swingHighs(candles.map((c) => ({ ...c, high: -c.low, low: -c.high })), span).map((p) => -p)
+  swingHighs(candles.map((c) => ({ ...c, high: -c.low, low: -c.high })), span).map((p) => ({ index: p.index, price: -p.price }))
+
+export interface Landmarks {
+  swing: ChartSpot // the recent swing low (long) or high (short): a stop hides just past it
+  touching: ChartSpot | null // a ceiling (long) or floor (short) right next to the entry
+  obstacle: ChartSpot | null // the nearest one further out: where a target should stop short
+  atr: number
+}
+
+// The levels a stop and target are planned around, all knowable before the trade.
+export function landmarks(candles: Candle[], direction: TradePlan['direction'], entry: number): Landmarks {
+  const long = direction === 'long'
+  const s = sign(direction)
+  const atr = averageTrueRange(candles)
+  const start = Math.max(0, candles.length - SWING_LOOKBACK)
+  let swing: ChartSpot = { index: start, price: long ? candles[start].low : candles[start].high }
+  for (let i = start; i < candles.length; i++) {
+    const price = long ? candles[i].low : candles[i].high
+    if ((price - swing.price) * s <= 0) swing = { index: i, price }
+  }
+
+  // Swing points in the target's direction: the ceilings (long) or floors
+  // (short) price has to get through. "Nearest" means closest to the entry.
+  const levels = long ? swingHighs(candles) : swingLows(candles)
+  const distance = (p: ChartSpot) => (p.price - entry) * s
+  const nearest = (ps: ChartSpot[]) => (ps.length ? ps.reduce((a, b) => (distance(b) < distance(a) ? b : a)) : null)
+  return {
+    swing,
+    touching: nearest(levels.filter((p) => distance(p) > 0 && distance(p) <= 0.5 * atr)),
+    obstacle: nearest(levels.filter((p) => distance(p) > 0.5 * atr)),
+    atr,
+  }
+}
 
 export function reviewStopAndTarget(candles: Candle[], plan: TradePlan): StopTargetReview {
   const long = plan.direction === 'long'
   const s = sign(plan.direction)
-  const atr = averageTrueRange(candles)
-  const recent = candles.slice(-SWING_LOOKBACK)
-  const swing = long ? Math.min(...recent.map((c) => c.low)) : Math.max(...recent.map((c) => c.high))
+  const marks = landmarks(candles, plan.direction, plan.entry)
+  const { atr } = marks
+  const swing = marks.swing.price
   const money = (n: number) => n.toFixed(2)
   const words = long
     ? { swing: 'low', past: 'under', inside: 'above', obstacle: 'resistance', edge: 'ceiling' }
@@ -82,13 +119,8 @@ export function reviewStopAndTarget(candles: Candle[], plan: TradePlan): StopTar
     ambitious: `1 : ${ratioText} is ambitious: a target that far away rarely gets hit within a month.`,
   }[target]
 
-  // Swing points in the target's direction: the ceilings (long) or floors
-  // (short) price has to get through. "Nearest" means closest to the entry.
-  const levels = long ? swingHighs(candles) : swingLows(candles)
-  const distance = (p: number) => (p - plan.entry) * s
-  const nearest = (ps: number[]) => (ps.length ? (long ? Math.min(...ps) : Math.max(...ps)) : null)
-  const touching = nearest(levels.filter((p) => distance(p) > 0 && distance(p) <= 0.5 * atr))
-  const obstacle = nearest(levels.filter((p) => distance(p) > 0.5 * atr))
+  const touching = marks.touching?.price ?? null
+  const obstacle = marks.obstacle?.price ?? null
 
   let obstacleText = ''
   if (touching !== null) {

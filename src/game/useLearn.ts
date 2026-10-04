@@ -9,18 +9,22 @@ export interface LearnProgress {
   // Scenario practice on each pattern's page: your best average score (0 to 1) over a run, and how many runs.
   scenarios: Record<string, { best: number; runs: number }>
   mixed: { played: number; points: number } // mixed scenarios: how many, and the total of their scores
+  exits: { played: number; points: number; best: number } // the stop-and-target drill: charts, total score, best run average
 }
 
 const STORAGE_KEY = 'tradr:learn:v1'
 
-const EMPTY: LearnProgress = { version: 1, scenarios: {}, mixed: { played: 0, points: 0 } }
+const NO_EXITS = { played: 0, points: 0, best: 0 }
+const EMPTY: LearnProgress = { version: 1, scenarios: {}, mixed: { played: 0, points: 0 }, exits: NO_EXITS }
 
 function load(): LearnProgress {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     const saved = raw ? (JSON.parse(raw) as LearnProgress) : null
-    // Saves from before scenarios existed simply start with none.
-    return saved?.version === 1 ? { version: 1, scenarios: saved.scenarios ?? {}, mixed: saved.mixed ?? { played: 0, points: 0 } } : EMPTY
+    // Saves from before scenarios (or the exits drill) existed simply start with none.
+    return saved?.version === 1
+      ? { version: 1, scenarios: saved.scenarios ?? {}, mixed: saved.mixed ?? { played: 0, points: 0 }, exits: saved.exits ?? NO_EXITS }
+      : EMPTY
   } catch {
     return EMPTY
   }
@@ -51,6 +55,8 @@ export function useLearn() {
         return { ...p, scenarios: { ...p.scenarios, [key]: { best: Math.max(before.best, average), runs: before.runs + 1 } } }
       }),
     recordMixed: (score: number) => setProgress((p) => ({ ...p, mixed: { played: p.mixed.played + 1, points: p.mixed.points + score } })),
+    recordExit: (score: number) => setProgress((p) => ({ ...p, exits: { ...p.exits, played: p.exits.played + 1, points: p.exits.points + score } })),
+    recordExitRun: (average: number) => setProgress((p) => ({ ...p, exits: { ...p.exits, best: Math.max(p.exits.best, average) } })),
   }
 }
 
