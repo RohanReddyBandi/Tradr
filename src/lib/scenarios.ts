@@ -1,4 +1,4 @@
-import type { Bias, Candle, ChartCard, Shape } from '../types'
+import type { Bias, Candle, ChartCard, ChartPoint, Shape } from '../types'
 import { makeRng, type Rng } from './random'
 import { averageTrueRange } from './trade'
 import { findCandlePatterns, findSignalPatterns } from './candlePatterns'
@@ -33,6 +33,7 @@ export interface Scenario {
   candle: { key: string; from: number; to: number; options: string[] } | null
   lines: Line[] // the key lines to find
   shapes: Shape[] // the full answer markup
+  tag: { at: ChartPoint; text: string } | null // where to write the pattern's name once it's out
   atr: number
   story: string
   name: string // what the chart was, for the reveal
@@ -103,6 +104,22 @@ function choices(key: string, also: string[], rng: Rng): string[] {
   return [key, ...picked].map((k) => [rng.next(), k] as const).sort((a, b) => a[0] - b[0]).map(([, k]) => k)
 }
 
+// Where the pattern's name goes: above the middle of its lines, at its highest
+// point, where there's usually open space (the label placer nudges it clear
+// of markers and other labels).
+function tagSpot(shapes: Shape[]): ChartPoint | null {
+  const points = shapes.flatMap((s): ChartPoint[] => {
+    if (s.kind === 'level') return [{ index: s.fromIndex, price: s.price }, { index: s.toIndex, price: s.price }]
+    if (s.kind === 'line') return [s.from, s.to]
+    if (s.kind === 'dot') return [s.at]
+    if (s.kind === 'curve') return s.points
+    return []
+  })
+  if (!points.length) return null
+  const indexes = points.map((p) => p.index)
+  return { index: (Math.min(...indexes) + Math.max(...indexes)) / 2, price: Math.max(...points.map((p) => p.price)) }
+}
+
 // The lines worth drawing: levels and trendlines from the answer markup (not the flagpole).
 function keyLines(shapes: Shape[]): Line[] {
   return shapes.flatMap((s): Line[] => {
@@ -132,6 +149,8 @@ function fromCard(card: ChartCard, focus: string | null, rng: Rng): Scenario | n
   const candle = signal ? { key: signal.pattern.key, from: signal.start, to: signal.end, options: choices(signal.pattern.key, sameSpot, rng) } : null
 
   const shapes: Shape[] = [...card.setup.chartFindings.flatMap((f) => f.shapes), ...(signal ? [{ kind: 'candles', fromIndex: signal.start, toIndex: signal.end } as Shape] : [])]
+  const main = card.setup.chartFindings.find((f) => findEntry(f.name)?.key === patternKey) ?? card.setup.chartFindings[0]
+  const tagAt = tagSpot(main?.shapes ?? [])
   return {
     focus,
     candles,
@@ -143,6 +162,7 @@ function fromCard(card: ChartCard, focus: string | null, rng: Rng): Scenario | n
     candle,
     lines: keyLines(card.setup.chartFindings.flatMap((f) => f.shapes)),
     shapes,
+    tag: patternKey && tagAt ? { at: tagAt, text: entryByKey(patternKey)?.name ?? main.name } : null,
     atr,
     story: card.setup.story,
     name: card.setup.name,
@@ -167,6 +187,7 @@ function fromDrawing(key: string, rng: Rng): Scenario | null {
     candle: null,
     lines: keyLines(d.shapes),
     shapes: d.shapes,
+    tag: tagSpot(d.shapes) && { at: tagSpot(d.shapes)!, text: entry.name },
     atr: averageTrueRange(d.candles, d.candles.length - 1),
     story: entry.meaning,
     name: entry.name,

@@ -41,6 +41,16 @@ describe('scenarios', () => {
     expect(many.filter((s) => s.trend !== null).length).toBeGreaterThan(30)
   })
 
+  it('knows where to write the pattern name on every chart pattern scenario', () => {
+    for (const e of LIBRARY.filter((x) => x.kind === 'chart')) {
+      const s = makeScenario(e.key, 21)
+      expect(s.tag, e.key).not.toBeNull()
+      expect(s.tag!.text).toBe(e.name)
+      expect(s.tag!.at.index).toBeGreaterThanOrEqual(0)
+      expect(s.tag!.at.index).toBeLessThan(s.candles.length)
+    }
+  })
+
   it('grades drawn lines against the key lines', () => {
     const s = makeScenario('doubleBottom', 5)
     expect(s.lines.length).toBeGreaterThan(0)

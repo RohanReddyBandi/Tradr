@@ -128,9 +128,13 @@ Each scenario is read the way a trader reads a chart, one question at a time
 (`lib/scenarios.ts`):
 
 1. **The trend**: up, down, or sideways (only asked when the chart has a clear answer)
-2. **The pattern**: four choices, with anything else the scanner sees on the chart left out
-3. **Its key lines**: draw them (flat levels or sloped lines, snapping to highs and lows);
-   each real line counts as found if one of yours sits within 0.7 of a normal day's range of it
+2. **Its key lines**: draw them (flat levels or sloped lines, snapping to highs and lows);
+   each real line counts as found if one of yours sits within 0.7 of a normal day's range
+   of it. Then the real ones appear.
+3. **The pattern**: four choices, with anything else the scanner sees on the chart left
+   out. The pattern is drawn on the chart here (its lines, levels, and numbered swing
+   points), and its name is written on it once you answer. Lines come first so that
+   finding the structure is a real question, and naming it is the next one.
 4. **The signal candle**: name the candles in the box, with a close-up
 5. **Your call**: buy, sell, or skip. Then the next 30 days play out, and the chart is
    labelled in full. Your own lines are only shown on the lines question, next to the

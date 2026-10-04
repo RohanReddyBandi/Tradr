@@ -345,6 +345,27 @@ function NoteLayer({ notes, scale, plot, height, compact, fontSize, candles }: L
         }
         return <rect key={k} x={left} y={top} width={boxRight - left} height={bottom - top} rx={4} fill={COLORS.marker} fillOpacity={0.08} stroke={COLORS.marker} strokeWidth={1.5} />
       }
+      case 'tag': {
+        // The pattern's name, in the chalk colour of the pattern's own markup.
+        if (compact) return null
+        const text = n.text.toUpperCase()
+        const ax = x(n.at.index)
+        const ay = y(n.at.price)
+        const spot = place(text, [
+          { x: ax, y: ay - 12, anchor: 'middle' },
+          { x: ax, y: ay - 12 - fontSize - 8, anchor: 'middle' },
+          { x: ax, y: ay + fontSize + 14, anchor: 'middle' },
+          { x: ax - 40, y: ay - 12, anchor: 'middle' },
+          { x: ax + 40, y: ay - 12, anchor: 'middle' },
+        ])
+        if (spot)
+          labels.push(
+            <text key={`l${k}`} x={spot.x} y={spot.y} textAnchor={spot.anchor} fill="#dcdcdc" stroke={COLORS.base} strokeWidth={3.5} paintOrder="stroke" {...caps} fontSize={fontSize + 1}>
+              {text}
+            </text>,
+          )
+        return null
+      }
       case 'arrow': {
         const up = n.dir === 'up'
         const cx = x(n.at.index) + Math.max(10, slot * 1.1)

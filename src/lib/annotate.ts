@@ -17,6 +17,7 @@ export type Note =
   | { kind: 'box'; from: number; to: number; label?: string; bias: Bias }
   | { kind: 'arrow'; at: ChartPoint; dir: 'up' | 'down' }
   | { kind: 'vline'; index: number }
+  | { kind: 'tag'; at: ChartPoint; text: string } // the pattern's name, written on the chart
 
 const SUPPORT = /support|floor|range low|bottom line/i
 const RESISTANCE = /resistance|ceiling|range high|top line/i

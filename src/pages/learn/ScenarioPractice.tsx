@@ -41,7 +41,9 @@ export function ScenarioPractice({ focus, runLength, onScenarioDone, onRunDone, 
   const [index, setIndex] = useState(0)
   const s = useMemo(() => makeScenario(focus, runSeed + index * 7919), [focus, runSeed, index])
   const steps = useMemo<Step[]>(
-    () => [...(s.trend ? ['trend' as const] : []), ...(s.pattern ? ['pattern' as const] : []), ...(s.lines.length ? ['lines' as const] : []), ...(s.candle ? ['candle' as const] : []), 'call'],
+    // Lines before the pattern: find the structure first, then name it (and
+    // the name doesn't give the lines away).
+    () => [...(s.trend ? ['trend' as const] : []), ...(s.lines.length ? ['lines' as const] : []), ...(s.pattern ? ['pattern' as const] : []), ...(s.candle ? ['candle' as const] : []), 'call'],
     [s],
   )
   const [stepIndex, setStepIndex] = useState(0)
@@ -108,11 +110,15 @@ export function ScenarioPractice({ focus, runLength, onScenarioDone, onRunDone, 
     const hi = Math.max(...prices)
     return { min: lo - (hi - lo) * 0.08, max: hi + (hi - lo) * 0.1 }
   }, [s])
+  // What's drawn so far: the pattern itself (lines, levels, swing points) once
+  // you've checked your lines or named it, its name once you've named it, the
+  // signal candles once you've named those, and the target with the call.
   const notes: Note[] = useMemo(() => {
-    const linesShown = done('lines') || allDone
-    const shapes: Shape[] = s.shapes.filter((sh) => (sh.kind === 'candles' ? done('candle') || allDone : linesShown))
+    const patternShown = done('lines') || done('pattern') || allDone
+    const shapes: Shape[] = s.shapes.filter((sh) => (sh.kind === 'candles' ? done('candle') || allDone : patternShown))
     const { notes: made } = annotate(shapes, s.candles, s.bias, last, allDone)
-    return made.map((n) => (n.kind === 'box' && s.candle ? { ...n, label: nameOf(s.candle.key) } : n))
+    const named: Note[] = (done('pattern') || allDone) && s.tag ? [{ kind: 'tag', at: s.tag.at, text: s.tag.text }] : []
+    return [...made.map((n) => (n.kind === 'box' && s.candle ? { ...n, label: nameOf(s.candle.key) } : n)), ...named]
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s, answers, last, allDone])
   const lines = drawings.filter((d): d is Line => d.kind !== 'candle')
