@@ -18,7 +18,7 @@ export const COLORS = {
 export const LEARN = {
   support: '#4c8dff',
   resistance: '#f5a524',
-  target: '#f2f2f2',
+  target: '#c9d1dc',
   marker: '#2f7bf6', // numbered swing points
   now: '#38bdf8', // the decision point
   yours: '#e8e8e8', // lines you draw in practice

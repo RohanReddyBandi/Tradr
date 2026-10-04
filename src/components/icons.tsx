@@ -30,15 +30,6 @@ export function LearnIcon() {
   )
 }
 
-export function PracticeIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" aria-hidden="true">
-      <path d="M15 4.5l4.5 4.5L9 19.5H4.5V15z" />
-      <line x1="12.5" y1="7" x2="17" y2="11.5" />
-    </svg>
-  )
-}
-
 export function StatsIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">

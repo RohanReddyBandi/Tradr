@@ -100,8 +100,10 @@ export function ScenarioPractice({ focus, runLength, onScenarioDone, onRunDone, 
   }
 
   // The chart: fixed range and room for the replay from the start, so nothing jumps.
+  // (It includes the target, worked out up front, so the reveal can't push it into the title.)
   const range = useMemo(() => {
-    const prices = [...s.candles, ...s.future].flatMap((c) => [c.low, c.high])
+    const { target } = annotate(s.shapes, s.candles, s.bias, s.candles.length - 1, true)
+    const prices = [...[...s.candles, ...s.future].flatMap((c) => [c.low, c.high]), ...(target ? [target] : [])]
     const lo = Math.min(...prices)
     const hi = Math.max(...prices)
     return { min: lo - (hi - lo) * 0.08, max: hi + (hi - lo) * 0.1 }
@@ -160,7 +162,7 @@ export function ScenarioPractice({ focus, runLength, onScenarioDone, onRunDone, 
             notes={notes}
             volume={s.volume}
             height={420}
-            title={allDone ? s.name : undefined}
+            title={allDone ? s.name : ''}
             shadeFrom={allDone ? last + 1 : undefined}
             label="A chart to read: trend, pattern, key lines, signal candle, and your call"
             overlay={
@@ -183,8 +185,9 @@ export function ScenarioPractice({ focus, runLength, onScenarioDone, onRunDone, 
           >
             {(scale, plot) => (
               <g>
-                {/* Your lines, once you've drawn them. */}
-                {(done('lines') || step !== 'lines') && lines.length > 0 && (
+                {/* Your lines, next to the real ones, while you're on that question. After
+                    that they go, so the finished chart shows just the answer. */}
+                {step === 'lines' && done('lines') && lines.length > 0 && (
                   <DrawingShapes
                     drawings={lines}
                     candles={s.candles}

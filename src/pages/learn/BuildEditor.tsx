@@ -1,69 +1,16 @@
 import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import type { Candle } from '../../types'
-import { PRACTICE_CANDLES, adjustCandle as adjust, buildTask, readBuild, type Handle } from '../../lib/practice'
-import { GROUPS, LIBRARY, entryByKey } from '../../lib/library'
+import { adjustCandle as adjust, buildTask, readBuild, type Handle } from '../../lib/practice'
+import { entryByKey } from '../../lib/library'
 import { candleExample } from '../../lib/examples'
 import { CandleLayer } from '../../components/ChartLayers'
 import { priceScale, useWidth } from '../../components/chartScale'
 import { MiniChart } from '../../components/MiniChart'
 import { COLORS } from '../../theme'
-import { PatternPicker } from './PatternPicker'
-import { TargetHeader } from './TargetHeader'
 
-const CANDLE_ENTRIES = LIBRARY.filter((e) => e.kind === 'candle')
-
-// A pattern you haven't built yet (or any, once you've built them all).
-function pickNext(built: string[], not?: string) {
-  const left = PRACTICE_CANDLES.filter((p) => !built.includes(p.key) && p.key !== not)
-  const pool = left.length ? left : PRACTICE_CANDLES.filter((p) => p.key !== not)
-  return pool[Math.floor(Math.random() * pool.length)].key
-}
-
-interface Props {
-  built: string[]
-  focus: string | null // a pattern to start on (from the Learn tab)
-  onBuilt: (key: string) => void
-}
-
-export function BuildDrill({ built, focus, onBuilt }: Props) {
-  // Start on the requested pattern, then the classic hammer, then a random one you haven't built.
-  const [target, setTarget] = useState(() => focus ?? (built.includes('hammer') ? pickNext(built) : 'hammer'))
-  const [picking, setPicking] = useState(false)
-  const entry = entryByKey(target)!
-
-  function choose(key: string) {
-    setTarget(key)
-    setPicking(false)
-  }
-
-  const picker = <PatternPicker entries={CANDLE_ENTRIES} groups={GROUPS.candle} selected={target} done={built} onPick={choose} />
-
-  return (
-    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-10">
-      <section>
-        <TargetHeader
-          verb="Build"
-          name={entry.name}
-          done={built.length}
-          total={PRACTICE_CANDLES.length}
-          picking={picking}
-          onChange={() => setPicking((p) => !p)}
-          onRandom={() => choose(pickNext(built, target))}
-        />
-        {picking && <div className="mt-4 rounded-3xl border border-edge bg-card p-4 lg:hidden">{picker}</div>}
-        {/* A new pattern gets a fresh editor (the key makes React start it over). */}
-        <BuildEditor key={target} target={target} onBuilt={onBuilt} onNext={() => choose(pickNext(built, target))} />
-      </section>
-      <aside className="hidden lg:block">
-        <div className="rounded-3xl border border-edge bg-card p-4">{picker}</div>
-      </aside>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// The editor
-// ---------------------------------------------------------------------------
+// Build a candlestick pattern yourself, on its page in Learn: drag your
+// candles' high, low, open, and close until the detector recognises it.
+// The candles before yours set up the move the pattern needs.
 
 const PAD = 12
 const LABELS = 26 // room under the candles for "Before" / "Your candles"

@@ -10,8 +10,8 @@ import { SCENARIO_MASTERY, SCENARIOS_PER_RUN } from '../../lib/scenarios'
 import { PRACTICE_CANDLES, DRAWABLE } from '../../lib/practice'
 import { HeroChart, Thumb } from './PatternChart'
 import { ScenarioPractice } from './ScenarioPractice'
-import { BuildEditor } from '../practice/BuildDrill'
-import { DrawPad } from '../practice/DrawDrill'
+import { BuildEditor } from './BuildEditor'
+import { DrawPad } from './DrawPad'
 import { LEARN } from '../../theme'
 
 const BIAS_STYLE: Record<Bias, string> = {

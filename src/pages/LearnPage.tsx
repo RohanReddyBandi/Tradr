@@ -7,7 +7,7 @@ import { ScenarioPractice } from './learn/ScenarioPractice'
 
 interface Props {
   history: TradeRecord[]
-  focus: string | null // a pattern name to open (from a Breakdown, Stats, or the quiz)
+  focus: string | null // a pattern name to open (from a Breakdown or Stats)
   practice: Practice
   learn: Learn
 }

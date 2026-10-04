@@ -6,8 +6,7 @@ sense. Fake money only.
 
 A **Learn** tab teaches every pattern, charts labelled the way traders mark them up, and
 tests you on realistic charts where you call the trend, name the pattern, draw its lines,
-read the signal candle, and make the call (see "Learn" below). A **Practice** tab has quick
-drills: marking candlesticks, a name-that-pattern quiz, and eight short lessons on the basics.
+read the signal candle, and make the call (see "Learn" below).
 
 ## Run it
 
@@ -134,24 +133,17 @@ Each scenario is read the way a trader reads a chart, one question at a time
    each real line counts as found if one of yours sits within 0.7 of a normal day's range of it
 4. **The signal candle**: name the candles in the box, with a close-up
 5. **Your call**: buy, sell, or skip. Then the next 30 days play out, and the chart is
-   labelled in full
+   labelled in full. Your own lines are only shown on the lines question, next to the
+   real ones, so the finished chart is just the answer.
 
-## Practice
-
-Quick drills away from the game, all graded by the same detectors:
-
-- **Mark**: a short chart with three candlestick patterns planted in it. Tap a candle,
-  name it, then check. Any candle inside a pattern counts.
-- **Quiz**: name that pattern from four choices, across all of them.
-- **Basics**: eight short interactive lessons on the ideas behind the patterns (reading a
-  candle, trends, support and resistance, trendlines, location, stops and targets, the
-  maths of losing, and why good decisions still lose).
+Labels on Learn charts find a free spot along their line, so they never sit on a numbered
+marker or another label.
 
 ## Saving
 
 Your balance and history are saved in this browser (localStorage), so they survive a
-reload. Reset on the Stats page starts over at $10,000. Practice and Learn progress are
-saved separately and aren't cleared by Reset.
+reload. Reset on the Stats page starts over at $10,000. Learn progress (mastery, scenarios,
+and what you've built and drawn) is saved separately and isn't cleared by Reset.
 
 ## Build status
 
@@ -162,7 +154,7 @@ saved separately and aren't cleared by Reset.
 5. ✅ Pattern detection: 44 candlestick patterns and 58 chart patterns (including gaps, islands, diamonds, rounding and V bottoms, broadening formations, rectangles, trendlines and trendline breaks, climaxes, Fibonacci pullbacks, and changes of character), found from the raw candles alone
 6. ✅ Stats (equity curve, win rate, average R, decision accuracy, skip stats, accuracy by difficulty and by pattern), a Learn tab with every pattern, and saving to localStorage
 7. ✅ Real historical data: 270 real 90-day windows from 45 stocks and funds, mixed in with generated charts
-8. ✅ Practice tab: mark the candles, a name-that-pattern quiz, and eight short lessons on the basics
+8. ✅ Build a candlestick and draw a chart pattern yourself, on each pattern's page
 9. ✅ Chart markup on the trade setup screen (trendlines, levels, named candles and patterns), graded in the Breakdown
 10. ✅ Learn tab: a study page for every pattern in a labelled textbook chart style, and real-world scenario practice to master each one
 
@@ -240,17 +232,16 @@ saved separately and aren't cleared by Reset.
 | `src/lib/library.ts`, `src/lib/examples.ts` | The Learn tab's pattern list and example charts |
 | `src/pages/StatsPage.tsx`, `src/components/EquityChart.tsx` | Stats page and the equity curve |
 | `src/pages/LearnPage.tsx`, `src/pages/learn/` | Learn tab: the pattern library, pattern pages, and scenarios |
-| `src/pages/PracticePage.tsx`, `src/pages/practice/` | Practice tab: Mark, Quiz, and the Basics lessons (`practice/lessons/`) |
-| `src/lib/lessons.ts`, `src/lib/quiz.ts` | The lessons' charts and arithmetic, and quiz questions |
+| `src/pages/learn/BuildEditor.tsx`, `src/pages/learn/DrawPad.tsx` | Build a candlestick, or draw a chart pattern, yourself |
 | `src/lib/spotting.ts`, `src/lib/patternStudy.ts` | Each pattern's spotting checklist, and its examples and look-alikes |
 | `src/lib/scenarios.ts`, `src/pages/learn/ScenarioPractice.tsx` | Real-world practice: realistic charts, the questions, and grading |
 | `src/lib/annotate.ts`, `src/components/AnnotatedChart.tsx` | The Learn chart style: labelled support, resistance, swing points, targets, volume |
 | `src/pages/learn/PatternDetail.tsx` | A pattern's study page |
-| `src/game/useLearn.ts` | Lesson and quiz progress, saved in the browser |
-| `src/components/SvgChart.tsx`, `src/components/MiniChart.tsx` | Light SVG candlestick charts for lessons and pattern cards |
-| `src/lib/practice.ts` | The Practice drills' logic: planting patterns, grading marks, turning a drawing into candles |
-| `src/game/usePractice.ts` | Practice progress, saved in the browser |
-| `src/components/ChartLayers.tsx`, `src/components/chartScale.ts` | Plain SVG candles and markup, shared by Learn and Practice |
+| `src/game/useLearn.ts` | Pattern mastery and scenario scores, saved in the browser |
+| `src/components/MiniChart.tsx` | A small static candlestick chart |
+| `src/lib/practice.ts` | Building and drawing: the starting candles, and turning a drawing into candles |
+| `src/game/usePractice.ts` | The patterns you've built and drawn, saved in the browser |
+| `src/components/ChartLayers.tsx`, `src/components/chartScale.ts` | Plain SVG candles and markup for the Learn charts |
 
 ## Stack
 

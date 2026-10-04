@@ -7,8 +7,8 @@ import { generateCard, type SetupTicket } from './generator'
 import { SETUPS } from './setups'
 import { CANDLE_RECIPES, REVERSAL_SIGNALS } from './signalCandles'
 import { LIBRARY, entryByKey, findEntry } from './library'
-import { drawPattern, lookAlikes } from './patternStudy'
-import { followThrough } from './lessons'
+
+import { drawPattern, followThrough, lookAlikes } from './patternStudy'
 import { lineAt, type Line } from './userMarkup'
 import { illustrativeVolume } from './annotate'
 

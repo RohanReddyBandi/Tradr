@@ -13,7 +13,7 @@ import { Thumb } from './PatternChart'
 interface Props {
   intro: ReactNode // the page heading, shown above the list (not on a pattern's page)
   history: TradeRecord[]
-  focus: string | null // a pattern name to open (from a Breakdown, Stats, or the quiz)
+  focus: string | null // a pattern name to open (from a Breakdown or Stats)
   practice: Practice // what you've built and drawn
   scenarios: LearnProgress['scenarios']
   onRunDone: (key: string, average: number) => void
@@ -224,8 +224,8 @@ function PatternCard({ entry, mastery, onOpen }: { entry: LibraryEntry; mastery?
     >
       <div className="relative w-full bg-[#07090c] px-1.5 pt-7 pb-1.5">
         <span
-          className="absolute inset-x-0 top-2 text-center text-[12.5px] font-extrabold tracking-[0.05em] text-white uppercase"
-          style={{ textShadow: '0 0 10px rgba(110,180,255,0.5)' }}
+          className="absolute inset-x-0 top-2 text-center text-[12.5px] font-bold tracking-[0.05em] text-[#e4e9f1]/90 uppercase"
+          style={{ textShadow: '0 0 10px rgba(110,180,255,0.3)' }}
         >
           {entry.name}
         </span>

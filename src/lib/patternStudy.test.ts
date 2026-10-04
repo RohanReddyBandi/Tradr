@@ -44,3 +44,16 @@ describe('how to trade it', () => {
     expect(howToTrade('chart', 'reversal', false, 'bearish')).toMatch(/below the neckline/)
   })
 })
+
+describe('play it out', () => {
+  it('moves the way the pattern leans, and reaches a given target', async () => {
+    const { followThrough } = await import('./patternStudy')
+    const { chartExample } = await import('./examples')
+    const example = chartExample('doubleBottom')!
+    const last = example.candles[example.candles.length - 1].close
+    expect(followThrough(example, 'bullish').at(-1)!.close).toBeGreaterThan(last)
+    expect(followThrough(example, 'bearish').at(-1)!.close).toBeLessThan(last)
+    const goal = last * 1.2
+    expect(followThrough(example, 'bullish', 5, goal).at(-1)!.close).toBeGreaterThan(goal * 0.98)
+  })
+})

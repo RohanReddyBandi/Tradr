@@ -1,5 +1,5 @@
-import type { Bias } from '../../types'
-import type { LibraryEntry } from '../../lib/library'
+import type { Bias } from '../types'
+import type { LibraryEntry } from '../lib/library'
 
 const DOT: Record<Bias, string> = { bullish: 'bg-up', bearish: 'bg-down', neutral: 'bg-neutral-500' }
 

@@ -8,46 +8,9 @@ import {
   buildTask,
   candlesFromDrawing,
   drawGuide,
-  gradeMarks,
-  makeMarkChart,
   readBuild,
   resample,
 } from './practice'
-
-describe('Mark the candles', () => {
-  const charts = Array.from({ length: 150 }, (_, i) => makeMarkChart(i + 1))
-
-  it('hides exactly three patterns, and nothing else the detector would name', () => {
-    const exact = charts.filter((c) => c.answers.length === 3)
-    expect(exact.length / charts.length).toBeGreaterThan(0.95)
-  })
-
-  it('uses every candlestick pattern sooner or later', () => {
-    const seen = new Set(Array.from({ length: 500 }, (_, i) => makeMarkChart(i + 1000)).flatMap((c) => c.answers.map((a) => a.pattern.key)))
-    expect(PRACTICE_CANDLES.filter((p) => !seen.has(p.key)).map((p) => p.key)).toEqual([])
-  })
-
-  it('gives full marks for the right answers, on any of their candles', () => {
-    for (const chart of charts.slice(0, 30)) {
-      const marks = chart.answers.map((a) => ({ index: a.end, key: a.pattern.key }))
-      const result = gradeMarks(chart, marks)
-      expect(result.found).toHaveLength(chart.answers.length)
-      expect(result.wrong).toBe(0)
-      const onFirstCandle = gradeMarks(chart, chart.answers.map((a) => ({ index: a.start, key: a.pattern.key })))
-      expect(onFirstCandle.found).toHaveLength(chart.answers.length)
-    }
-  })
-
-  it('counts a wrong name as wrong, and an unmarked pattern as missed', () => {
-    const chart = charts[0]
-    const [first] = chart.answers
-    const wrongKey = PRACTICE_CANDLES.find((p) => !chart.all.some((m) => m.pattern.key === p.key))!.key
-    const result = gradeMarks(chart, [{ index: first.start, key: wrongKey }])
-    expect(result.wrong).toBe(1)
-    expect(result.grades[0].actually).toBe(first)
-    expect(result.missed).toHaveLength(chart.answers.length)
-  })
-})
 
 describe('Build a candlestick', () => {
   for (const pattern of PRACTICE_CANDLES) {

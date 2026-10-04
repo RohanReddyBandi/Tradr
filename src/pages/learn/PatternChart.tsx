@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Bias, Candle, Shape } from '../../types'
 import type { LibraryEntry } from '../../lib/library'
 import type { PatternExample } from '../../lib/examples'
-import { followThrough } from '../../lib/lessons'
+import { followThrough } from '../../lib/patternStudy'
 import { annotate, illustrativeVolume } from '../../lib/annotate'
 import { AnnotatedChart } from '../../components/AnnotatedChart'
 

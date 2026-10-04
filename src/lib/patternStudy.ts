@@ -1,8 +1,8 @@
-import type { Candle, Shape } from '../types'
+import type { Bias, Candle, Shape } from '../types'
 import { makeRng, type Rng } from './random'
 import { CANDLE_PATTERNS, findCandlePatterns } from './candlePatterns'
 import { findChartPatterns } from './chartPatterns'
-import { CANDLE_RECIPES, CHART_SHAPES, GAPS, MIRRORS, R, candleExample, candlesThrough, chartExample, flip, type Points } from './examples'
+import { CANDLE_RECIPES, CHART_SHAPES, GAPS, MIRRORS, R, candleExample, candlesThrough, chartExample, flip, type PatternExample, type Points } from './examples'
 import { SIGNAL_RECIPES } from './signalCandles'
 import { entryByKey } from './library'
 
@@ -340,4 +340,29 @@ export function examplesOf(key: string, seed: number, count = 3): Specimen[] {
     if (d.ok) out.push({ candles: d.candles, shapes: d.shapes, is: true, kind: 'example', shows: key, note: `${entry.name}. ${entry.meaning}` })
   }
   return out
+}
+
+// ---------------------------------------------------------------------------
+// "Play it out": what usually comes next
+// ---------------------------------------------------------------------------
+
+// A typical follow-through after an example: price moves the way the pattern
+// leans (or drifts sideways for a neutral one). For illustration only: real
+// patterns fail too.
+// With a `goal` (a measured-move target), the move ends just past it.
+export function followThrough(example: PatternExample, bias: Bias, seed = 5, goal?: number | null): Candle[] {
+  const { candles } = example
+  const last = candles[candles.length - 1]
+  const prices = candles.flatMap((c) => [c.low, c.high])
+  const height = goal ? Math.abs(goal - last.close) * 1.04 : Math.max((Math.max(...prices) - Math.min(...prices)) * 0.55, 5 * R)
+  const count = Math.max(8, Math.round(candles.length * 0.3))
+  const s = bias === 'bullish' ? 1 : bias === 'bearish' ? -1 : 0
+  const wiggle = height * 0.15
+  const points: Points =
+    s === 0
+      ? [[0, last.close], [Math.round(count * 0.3), last.close + wiggle], [Math.round(count * 0.65), last.close - wiggle], [count, last.close]]
+      : [[0, last.close], [Math.round(count * 0.45), last.close + s * height * 0.55], [Math.round(count * 0.6), last.close + s * height * 0.4], [count, last.close + s * height]]
+  return candlesThrough(points, seed)
+    .slice(1)
+    .map((c, k) => ({ ...c, time: candles.length + k }))
 }

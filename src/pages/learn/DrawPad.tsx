@@ -1,66 +1,14 @@
 import { useMemo, useRef, useState, type PointerEvent } from 'react'
 import type { Candle } from '../../types'
-import { DRAWABLE, DRAW_CANDLES, DRAW_PRICES, candlesFromDrawing, drawGuide, resample } from '../../lib/practice'
+import { DRAW_CANDLES, DRAW_PRICES, candlesFromDrawing, drawGuide, resample } from '../../lib/practice'
 import { findChartPatterns, type ChartPatternMatch } from '../../lib/chartPatterns'
-import { GROUPS, LIBRARY, entryByKey } from '../../lib/library'
+import { entryByKey } from '../../lib/library'
 import { CandleLayer, ShapeLayer } from '../../components/ChartLayers'
 import { priceScale, useWidth } from '../../components/chartScale'
 import { COLORS } from '../../theme'
-import { PatternPicker } from './PatternPicker'
-import { TargetHeader } from './TargetHeader'
 
-const DRAW_KEYS = DRAWABLE.map((p) => p.key)
-const DRAW_ENTRIES = LIBRARY.filter((e) => e.kind === 'chart' && DRAW_KEYS.includes(e.key))
-
-function pickNext(drawn: string[], not?: string) {
-  const left = DRAW_KEYS.filter((k) => !drawn.includes(k) && k !== not)
-  const pool = left.length ? left : DRAW_KEYS.filter((k) => k !== not)
-  return pool[Math.floor(Math.random() * pool.length)]
-}
-
-interface Props {
-  drawn: string[]
-  focus: string | null
-  onDrawn: (key: string) => void
-}
-
-export function DrawDrill({ drawn, focus, onDrawn }: Props) {
-  const [target, setTarget] = useState(() => focus ?? (drawn.includes('doubleBottom') ? pickNext(drawn) : 'doubleBottom'))
-  const [picking, setPicking] = useState(false)
-  const entry = entryByKey(target)!
-
-  function choose(key: string) {
-    setTarget(key)
-    setPicking(false)
-  }
-
-  const picker = <PatternPicker entries={DRAW_ENTRIES} groups={GROUPS.chart} selected={target} done={drawn} onPick={choose} />
-
-  return (
-    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-10">
-      <section>
-        <TargetHeader
-          verb="Draw"
-          name={entry.name}
-          done={drawn.filter((k) => DRAW_KEYS.includes(k)).length}
-          total={DRAW_KEYS.length}
-          picking={picking}
-          onChange={() => setPicking((p) => !p)}
-          onRandom={() => choose(pickNext(drawn, target))}
-        />
-        {picking && <div className="mt-4 rounded-3xl border border-edge bg-card p-4 lg:hidden">{picker}</div>}
-        <DrawPad key={target} target={target} onDrawn={onDrawn} onNext={() => choose(pickNext(drawn, target))} />
-      </section>
-      <aside className="hidden lg:block">
-        <div className="rounded-3xl border border-edge bg-card p-4">{picker}</div>
-      </aside>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// The drawing pad
-// ---------------------------------------------------------------------------
+// Draw a chart pattern yourself, on its page in Learn: one stroke becomes
+// candles, and the same scanner that reads the swipe cards says what it sees.
 
 const COLUMNS = 120 // the pad remembers one height per column
 const PAD = 12

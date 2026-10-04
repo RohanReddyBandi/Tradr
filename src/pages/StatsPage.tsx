@@ -2,7 +2,6 @@ import { useState, type ReactNode } from 'react'
 import { STARTING_BALANCE, type Game } from '../game/useGame'
 import type { PracticeProgress } from '../game/usePractice'
 import { masteredKeys, type LearnProgress } from '../game/useLearn'
-import { LESSON_IDS } from '../lib/lessons'
 import { computeStats } from '../lib/stats'
 import { DRAWABLE, PRACTICE_CANDLES } from '../lib/practice'
 import { LIBRARY, findEntry } from '../lib/library'
@@ -188,25 +187,6 @@ export function StatsPage({ game, practice, learn, onPlay, onLearn }: Props) {
                 name="Practice scenarios"
                 detail={learn.mixed.played ? `${learn.mixed.played} played · average ${Math.round((learn.mixed.points / learn.mixed.played) * 100)}%` : 'not tried yet'}
                 share={learn.mixed.played ? learn.mixed.points / learn.mixed.played : null}
-              />
-              <ScoreRow
-                name="Basics lessons finished"
-                detail={`${learn.lessons.filter((id) => LESSON_IDS.includes(id)).length}/${LESSON_IDS.length}`}
-                share={learn.lessons.filter((id) => LESSON_IDS.includes(id)).length / LESSON_IDS.length}
-                progress
-              />
-              <ScoreRow
-                name="Quiz"
-                detail={learn.quiz.answered ? `${learn.quiz.correct}/${learn.quiz.answered} right · best streak ${learn.quiz.best}` : 'not tried yet'}
-                share={learn.quiz.answered ? learn.quiz.correct / learn.quiz.answered : null}
-              />
-            </Section>
-
-            <Section title="Practice">
-              <ScoreRow
-                name="Marking candles"
-                detail={practice.mark.charts ? `${practice.mark.found}/${practice.mark.found + practice.mark.missed} found` : 'none yet'}
-                share={practice.mark.charts ? practice.mark.found / Math.max(1, practice.mark.found + practice.mark.missed) : null}
               />
               <ScoreRow
                 name="Candlesticks built"

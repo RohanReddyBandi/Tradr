@@ -5,7 +5,6 @@ import { TabBar, TopBar, type Tab } from './components/TabBar'
 import { SwipePage } from './pages/SwipePage'
 import { LearnPage } from './pages/LearnPage'
 import { StatsPage } from './pages/StatsPage'
-import { PracticePage } from './pages/PracticePage'
 import { useGame } from './game/useGame'
 import { usePractice } from './game/usePractice'
 import { useLearn } from './game/useLearn'
@@ -42,7 +41,6 @@ export default function App() {
             {tab === 'swipe' && <SwipePage game={game} onLearn={openLearn} />}
             {/* The key makes Learn start fresh (and open the pattern) each time it opens on one. */}
             {tab === 'learn' && <LearnPage key={learnFocus ?? 'all'} history={game.history} focus={learnFocus} practice={practice} learn={learn} />}
-            {tab === 'practice' && <PracticePage practice={practice} learn={learn} onLearn={openLearn} />}
             {tab === 'stats' && <StatsPage game={game} practice={practice.progress} learn={learn.progress} onPlay={() => changeTab('swipe')} onLearn={openLearn} />}
           </main>
           {/* The trade setup is a focused step with its own back button, so the phone tabs step aside. */}

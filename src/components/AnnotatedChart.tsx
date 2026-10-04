@@ -18,7 +18,7 @@ interface Props {
   notes?: Note[]
   volume?: number[] // one per candle (indexes match `candles`); omitted: no volume
   height: number
-  title?: string
+  title?: string // '' reserves the room without showing anything yet
   compact?: boolean // small thumbnails: no axis, quieter labels
   shadeFrom?: number // shade the replay zone from this candle position on
   label: string // for screen readers
@@ -56,7 +56,8 @@ export function AnnotatedChart({ candles, slots, range, notes = [], volume, heig
   const volumeBand = volume ? Math.round(height * (compact ? 0.14 : 0.16)) : 0
   const priceHeight = height - volumeBand
   // Room above and below the candles for the numbered markers and labels.
-  const top = title ? (compact ? 26 : 62) : compact ? 18 : 24
+  // (An empty title still keeps its space, so a chart that gets its title later doesn't shift.)
+  const top = title !== undefined ? (compact ? 26 : 62) : compact ? 18 : 24
   const bottom = compact ? 16 : 30
   const padX = compact ? 6 : 10
 
@@ -125,8 +126,8 @@ export function AnnotatedChart({ candles, slots, range, notes = [], volume, heig
       )}
       {title && width > 0 && (
         <div
-          className={`pointer-events-none absolute inset-x-0 text-center font-extrabold tracking-[0.04em] text-white uppercase ${compact ? 'top-1.5 text-[12px]' : 'top-3 text-[22px] lg:text-[28px]'}`}
-          style={{ textShadow: '0 0 14px rgba(110,180,255,0.55), 0 0 30px rgba(110,180,255,0.25)', width: plot }}
+          className={`pointer-events-none absolute inset-x-0 px-4 text-center font-bold tracking-[0.05em] text-[#e4e9f1]/90 uppercase ${compact ? 'top-1.5 text-[12px]' : 'top-3.5 text-[19px] lg:text-[23px]'}`}
+          style={{ textShadow: '0 0 12px rgba(110,180,255,0.3)', width: plot }}
         >
           {title}
         </div>
@@ -146,134 +147,230 @@ interface LayerProps {
   candles: Candle[]
 }
 
+interface Box {
+  left: number
+  right: number
+  top: number
+  bottom: number
+}
+
+const overlaps = (a: Box, b: Box) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+
+// Draws the annotations. Lines, markers, and arrows go where their prices say;
+// labels then look for a free spot along their line (above it first, then
+// below), so they never sit on a numbered marker or on each other.
 function NoteLayer({ notes, scale, plot, height, compact, fontSize, candles }: LayerProps) {
   const { x, y, slot } = scale
   const right = (to: number) => Math.min(plot - 2, x(to) + slot / 2)
   const caps = { fontSize, fontWeight: 700, letterSpacing: '0.06em' } as const
+  const textWidth = (text: string) => text.length * fontSize * 0.72 + 6
+
+  // Everything a label must keep clear of: markers, arrows, and labels already placed.
+  const r = compact ? 6 : 9.5
+  const markerY = (n: Extract<Note, { kind: 'marker' }>) => y(n.at.price) + (n.place === 'below' ? r + 7 : -(r + 7))
+  const taken: Box[] = notes.flatMap((n): Box[] => {
+    if (n.kind === 'marker') {
+      const cx = x(n.at.index)
+      const cy = markerY(n)
+      return [{ left: cx - r - 2, right: cx + r + 2, top: cy - r - 2, bottom: cy + r + 2 }]
+    }
+    if (n.kind === 'arrow') {
+      const cx = x(n.at.index) + Math.max(10, slot * 1.1)
+      const tip = y(n.at.price)
+      return [{ left: cx - 8, right: cx + 8, top: Math.min(tip, tip + (n.dir === 'up' ? 28 : -28)), bottom: Math.max(tip, tip + (n.dir === 'up' ? 28 : -28)) }]
+    }
+    return []
+  })
+
+  // Try each spot in turn; the first one that's clear (and on the chart) wins.
+  function place(text: string, spots: { x: number; y: number; anchor: 'start' | 'middle' | 'end' }[]) {
+    const w = textWidth(text)
+    for (const spot of spots) {
+      const left = spot.anchor === 'middle' ? spot.x - w / 2 : spot.anchor === 'end' ? spot.x - w : spot.x
+      const box = { left, right: left + w, top: spot.y - fontSize, bottom: spot.y + 3 }
+      if (left < 2 || left + w > plot - 2 || box.top < 2) continue
+      if (taken.some((t) => overlaps(t, box))) continue
+      taken.push(box)
+      return spot
+    }
+    return null // nowhere clear: leave the label off rather than pile it on top of something
+  }
+
+  const labels: ReactNode[] = []
+  const shapes = notes.map((n, k) => {
+    switch (n.kind) {
+      case 'vline':
+        return <line key={k} x1={x(n.index)} x2={x(n.index)} y1={0} y2={height} stroke={LEARN.now} strokeOpacity={0.55} strokeDasharray="4 5" />
+      case 'curve':
+        return (
+          <polyline
+            key={k}
+            points={n.points.map((p) => `${x(p.index)},${y(p.price)}`).join(' ')}
+            fill="none"
+            stroke={COLORS.chalk}
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            opacity={0.8}
+          />
+        )
+      case 'hline': {
+        const color = ROLE_COLOR[n.role]
+        const target = n.role === 'target'
+        const x1 = target ? 0 : x(n.from) - slot / 2
+        const x2 = right(n.to)
+        const py = y(n.price)
+        const text = n.label?.toUpperCase()
+        if (text && !compact) {
+          const along = (f: number) => x1 + (x2 - x1) * f
+          const spot = target
+            ? place(text, [
+                { x: x2 - 4, y: py - 7, anchor: 'end' },
+                { x: x2 - 4, y: py + fontSize + 5, anchor: 'end' },
+              ])
+            : place(text, [
+                ...[0.5, 0.3, 0.7, 0.15, 0.85].map((f) => ({ x: along(f), y: py - 7, anchor: 'middle' as const })),
+                ...[0.5, 0.3, 0.7].map((f) => ({ x: along(f), y: py + fontSize + 5, anchor: 'middle' as const })),
+              ])
+          if (spot)
+            labels.push(
+              <text key={`l${k}`} x={spot.x} y={spot.y} textAnchor={spot.anchor} fill={color} opacity={target ? 0.8 : 1} stroke={COLORS.base} strokeWidth={3} paintOrder="stroke" {...caps} fontWeight={target ? 600 : 700}>
+                {text}
+              </text>,
+            )
+        }
+        return (
+          <line
+            key={k}
+            x1={x1}
+            x2={x2}
+            y1={py}
+            y2={py}
+            stroke={color}
+            strokeWidth={target ? 1.4 : 2}
+            strokeOpacity={target ? 0.65 : 1}
+            strokeDasharray={ROLE_DASH[n.role]}
+            strokeLinecap="round"
+          />
+        )
+      }
+      case 'line': {
+        const color = ROLE_COLOR[n.role]
+        const text = n.label?.toUpperCase()
+        const [a, b] = n.from.index <= n.to.index ? [n.from, n.to] : [n.to, n.from]
+        if (text && !compact) {
+          const at = (f: number) => ({ px: x(a.index) + (x(b.index) - x(a.index)) * f, py: y(a.price) + (y(b.price) - y(a.price)) * f })
+          const spot = place(
+            text,
+            [0.15, 0.4, 0.65, 0.85].flatMap((f) => {
+              const { px, py } = at(f)
+              return [
+                { x: px, y: py - 8, anchor: 'middle' as const },
+                { x: px, y: py + fontSize + 6, anchor: 'middle' as const },
+              ]
+            }),
+          )
+          if (spot)
+            labels.push(
+              <text key={`l${k}`} x={spot.x} y={spot.y} textAnchor={spot.anchor} fill={color} stroke={COLORS.base} strokeWidth={3} paintOrder="stroke" {...caps}>
+                {text}
+              </text>,
+            )
+        }
+        return (
+          <line
+            key={k}
+            x1={x(a.index)}
+            y1={y(a.price)}
+            x2={x(b.index)}
+            y2={y(b.price)}
+            stroke={color}
+            strokeWidth={n.role === 'pole' ? 1.5 : 2}
+            strokeDasharray={ROLE_DASH[n.role]}
+            strokeLinecap="round"
+          />
+        )
+      }
+      case 'marker': {
+        const cy = markerY(n)
+        if (n.caption && !compact) {
+          const below = n.place === 'below'
+          const spot = place(n.caption.toUpperCase(), [
+            { x: x(n.at.index), y: below ? cy + r + 12 : cy - r - 5, anchor: 'middle' },
+            { x: x(n.at.index) + r + 4, y: cy + 4, anchor: 'start' },
+            { x: x(n.at.index) - r - 4, y: cy + 4, anchor: 'end' },
+          ])
+          if (spot)
+            labels.push(
+              <text key={`l${k}`} x={spot.x} y={spot.y} textAnchor={spot.anchor} fill="#cfd8ea" stroke={COLORS.base} strokeWidth={3} paintOrder="stroke" {...caps} fontSize={fontSize - 1}>
+                {n.caption.toUpperCase()}
+              </text>,
+            )
+        }
+        return (
+          <g key={k}>
+            <circle cx={x(n.at.index)} cy={cy} r={r} fill={LEARN.marker} stroke={COLORS.base} strokeWidth={1.5} />
+            <text x={x(n.at.index)} y={cy + (compact ? 3 : 3.8)} textAnchor="middle" fontSize={compact ? 8 : 11} fontWeight={700} fill="#ffffff">
+              {n.n}
+            </text>
+          </g>
+        )
+      }
+      case 'box': {
+        const slice = candles.slice(n.from, n.to + 1)
+        if (!slice.length) return null
+        const top = y(Math.max(...slice.map((c) => c.high))) - 5
+        const bottom = y(Math.min(...slice.map((c) => c.low))) + 5
+        const left = x(n.from) - slot / 2 - 2
+        const boxRight = x(n.to) + slot / 2 + 2
+        taken.push({ left, right: boxRight, top, bottom })
+        if (n.label && !compact) {
+          const middle = (left + boxRight) / 2
+          const text = n.label.toUpperCase()
+          // Opposite the numbered markers first (they sit under lows on bullish charts, over highs on bearish ones).
+          const above = { x: middle, y: top - 7, anchor: 'middle' as const }
+          const below = { x: middle, y: bottom + fontSize + 4, anchor: 'middle' as const }
+          const spot = place(text, [
+            ...(n.bias === 'bearish' ? [below, above] : [above, below]),
+            { x: left - 6, y: (top + bottom) / 2 + 4, anchor: 'end' },
+            { x: middle, y: top - 7 - fontSize - 6, anchor: 'middle' },
+            { x: middle, y: bottom + 2 * fontSize + 10, anchor: 'middle' },
+          ])
+          if (spot)
+            labels.push(
+              <text key={`l${k}`} x={spot.x} y={spot.y} textAnchor={spot.anchor} fill={COLORS.marker} stroke={COLORS.base} strokeWidth={3} paintOrder="stroke" {...caps}>
+                {text}
+              </text>,
+            )
+        }
+        return <rect key={k} x={left} y={top} width={boxRight - left} height={bottom - top} rx={4} fill={COLORS.marker} fillOpacity={0.08} stroke={COLORS.marker} strokeWidth={1.5} />
+      }
+      case 'arrow': {
+        const up = n.dir === 'up'
+        const cx = x(n.at.index) + Math.max(10, slot * 1.1)
+        const tip = y(n.at.price) + (up ? -2 : 2)
+        const tail = tip + (up ? 26 : -26)
+        const color = up ? COLORS.up : COLORS.down
+        return (
+          <path
+            key={k}
+            d={`M ${cx} ${tail} L ${cx} ${tip} M ${cx - 6} ${tip + (up ? 7 : -7)} L ${cx} ${tip} L ${cx + 6} ${tip + (up ? 7 : -7)}`}
+            stroke={color}
+            strokeWidth={compact ? 2 : 3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        )
+      }
+    }
+  })
+
+  // Labels last, so they sit on top of every line.
   return (
     <g>
-      {notes.map((n, k) => {
-        switch (n.kind) {
-          case 'vline':
-            return <line key={k} x1={x(n.index)} x2={x(n.index)} y1={0} y2={height} stroke={LEARN.now} strokeOpacity={0.7} strokeDasharray="4 5" />
-          case 'curve':
-            return (
-              <polyline
-                key={k}
-                points={n.points.map((p) => `${x(p.index)},${y(p.price)}`).join(' ')}
-                fill="none"
-                stroke={COLORS.chalk}
-                strokeWidth={2}
-                strokeLinejoin="round"
-                strokeLinecap="round"
-                opacity={0.8}
-              />
-            )
-          case 'hline': {
-            const color = ROLE_COLOR[n.role]
-            const x1 = n.role === 'target' ? 0 : x(n.from) - slot / 2
-            const x2 = right(n.to)
-            const text = n.label?.toUpperCase()
-            return (
-              <g key={k}>
-                <line x1={x1} x2={x2} y1={y(n.price)} y2={y(n.price)} stroke={color} strokeWidth={n.role === 'target' ? 1.6 : 2} strokeDasharray={ROLE_DASH[n.role]} strokeLinecap="round" />
-                {text && !compact && (
-                  <text
-                    x={n.role === 'target' ? x2 - 4 : Math.min(x2 - 4, Math.max(x1 + 4, (x1 + x2) / 2))}
-                    y={y(n.price) - 7}
-                    textAnchor={n.role === 'target' ? 'end' : 'middle'}
-                    fill={color}
-                    stroke={COLORS.base}
-                    strokeWidth={3}
-                    paintOrder="stroke"
-                    {...caps}
-                  >
-                    {text}
-                  </text>
-                )}
-              </g>
-            )
-          }
-          case 'line': {
-            const color = ROLE_COLOR[n.role]
-            const text = n.label?.toUpperCase()
-            const [a, b] = n.from.index <= n.to.index ? [n.from, n.to] : [n.to, n.from]
-            return (
-              <g key={k}>
-                <line x1={x(a.index)} y1={y(a.price)} x2={x(b.index)} y2={y(b.price)} stroke={color} strokeWidth={n.role === 'pole' ? 1.5 : 2} strokeDasharray={ROLE_DASH[n.role]} strokeLinecap="round" />
-                {text && !compact && (
-                  <text x={x(a.index) + 6} y={y(a.price) - 8} fill={color} stroke={COLORS.base} strokeWidth={3} paintOrder="stroke" {...caps}>
-                    {text}
-                  </text>
-                )}
-              </g>
-            )
-          }
-          case 'marker': {
-            const r = compact ? 6 : 9.5
-            const cy = y(n.at.price) + (n.place === 'below' ? r + 7 : -(r + 7))
-            return (
-              <g key={k}>
-                <circle cx={x(n.at.index)} cy={cy} r={r} fill={LEARN.marker} stroke={COLORS.base} strokeWidth={1.5} />
-                <text x={x(n.at.index)} y={cy + (compact ? 3 : 3.8)} textAnchor="middle" fontSize={compact ? 8 : 11} fontWeight={700} fill="#ffffff">
-                  {n.n}
-                </text>
-                {n.caption && !compact && (
-                  <text
-                    x={x(n.at.index)}
-                    y={n.place === 'below' ? cy + r + 12 : cy - r - 5}
-                    textAnchor="middle"
-                    fill="#cfd8ea"
-                    stroke={COLORS.base}
-                    strokeWidth={3}
-                    paintOrder="stroke"
-                    {...caps}
-                    fontSize={fontSize - 1}
-                  >
-                    {n.caption.toUpperCase()}
-                  </text>
-                )}
-              </g>
-            )
-          }
-          case 'box': {
-            const slice = candles.slice(n.from, n.to + 1)
-            if (!slice.length) return null
-            const top = y(Math.max(...slice.map((c) => c.high))) - 5
-            const bottom = y(Math.min(...slice.map((c) => c.low))) + 5
-            const left = x(n.from) - slot / 2 - 2
-            return (
-              <g key={k}>
-                <rect x={left} y={top} width={x(n.to) + slot / 2 + 2 - left} height={bottom - top} rx={4} fill={COLORS.marker} fillOpacity={0.08} stroke={COLORS.marker} strokeWidth={1.5} />
-                {/* Opposite the numbered markers: they sit under lows on bullish charts, over highs on bearish ones. */}
-                {n.label && !compact && (
-                  <text x={(left + x(n.to) + slot / 2) / 2} y={n.bias === 'bearish' ? bottom + 15 : top - 7} textAnchor="middle" fill={COLORS.marker} stroke={COLORS.base} strokeWidth={3} paintOrder="stroke" {...caps}>
-                    {n.label.toUpperCase()}
-                  </text>
-                )}
-              </g>
-            )
-          }
-          case 'arrow': {
-            const up = n.dir === 'up'
-            const cx = x(n.at.index) + Math.max(10, slot * 1.1)
-            const tip = y(n.at.price) + (up ? -2 : 2)
-            const tail = tip + (up ? 26 : -26)
-            const color = up ? COLORS.up : COLORS.down
-            return (
-              <path
-                key={k}
-                d={`M ${cx} ${tail} L ${cx} ${tip} M ${cx - 6} ${tip + (up ? 7 : -7)} L ${cx} ${tip} L ${cx + 6} ${tip + (up ? 7 : -7)}`}
-                stroke={color}
-                strokeWidth={compact ? 2 : 3}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            )
-          }
-        }
-      })}
+      {shapes}
+      {labels}
     </g>
   )
 }

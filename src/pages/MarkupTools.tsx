@@ -5,7 +5,7 @@ import type { Drawing } from '../lib/userMarkup'
 import { GROUPS, LIBRARY, entryByKey } from '../lib/library'
 import { MiniChart } from '../components/MiniChart'
 import { Sheet } from '../components/Sheet'
-import { PatternPicker } from './practice/PatternPicker'
+import { PatternPicker } from '../components/PatternPicker'
 
 // The markup tools on the trade setup screen: the tool bar under the chart,
 // the "Your read" panel listing what you've drawn, and the pickers for

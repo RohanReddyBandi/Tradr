@@ -1,148 +1,16 @@
 import type { Candle } from '../types'
-import { makeRng, type Rng } from './random'
-import { CANDLE_PATTERNS, findCandlePatterns, resolveOverlaps, type CandleMatch } from './candlePatterns'
-import { CANDLE_RECIPES, CHART_SHAPES, GAPS, MIRRORS, R, flip, leadIn, type LeadIn } from './examples'
+import { makeRng } from './random'
+import { CANDLE_PATTERNS, findCandlePatterns, type CandleMatch } from './candlePatterns'
+import { CANDLE_RECIPES, CHART_SHAPES, GAPS, MIRRORS, R, flip, leadIn } from './examples'
 import { CHART_PATTERNS } from './chartPatterns'
-import { SIGNAL_RECIPES, type Bar } from './signalCandles'
 
-// The Practice tab's three drills:
-//   Mark:  a short chart with a few candlestick patterns hidden in it. You
-//          name the candles; the pattern detector grades you.
+// Making a pattern yourself, on its page in the Learn tab:
 //   Build: drag one to five candles into a named candlestick pattern.
 //   Draw:  draw a chart pattern with your finger or mouse; the chart
 //          pattern scanner says what it sees.
 
-// ---------------------------------------------------------------------------
-// Mark the candles
-// ---------------------------------------------------------------------------
-
-export interface MarkChart {
-  candles: Candle[]
-  answers: CandleMatch[] // the patterns to find (one per group of candles)
-  all: CandleMatch[] // every pattern the detector sees, including smaller ones inside bigger ones
-}
-
-// One ordinary candle that moves price along in a direction without forming
-// any named pattern. Each opens a hair beyond the previous close, which keeps
-// runs of candles from reading as "three white soldiers" and friends.
-function plainCandle(prev: Candle, direction: LeadIn, rng: Rng, flatStep: number): Candle {
-  const wick = () => R * rng.range(0.1, 0.28)
-  let up: boolean
-  let size: number
-  if (direction === 'flat') {
-    up = flatStep % 2 === 0
-    size = rng.range(0.3, 0.5)
-  } else {
-    // Mostly with the trend, with the odd small candle against it.
-    const counter = rng.chance(0.2)
-    up = (direction === 'up') !== counter
-    size = counter ? rng.range(0.2, 0.3) : rng.range(0.45, 0.7)
-  }
-  const sign = up ? 1 : -1
-  // A counter candle opens just past the previous candle's wick, so it can't sit inside it.
-  const againstTrend = direction !== 'flat' && up !== (direction === 'up')
-  const open = againstTrend
-    ? (up ? prev.low : prev.high) - sign * R * 0.02
-    : prev.close + sign * R * rng.range(0.03, 0.08)
-  const close = open + sign * size * R
-  const lower = againstTrend && up ? R * rng.range(0.08, 0.14) : wick()
-  const upper = againstTrend && !up ? R * rng.range(0.08, 0.14) : wick()
-  return { time: 0, open, close, high: Math.max(open, close) + upper, low: Math.min(open, close) - lower }
-}
-
-const flipBar = (b: Bar): Bar => ({ open: -b.open, close: -b.close, high: -b.low, low: -b.high })
-
-// Candlestick patterns that can appear in the drills: every one with a recipe.
+// Candlestick patterns you can build: every one with a recipe.
 export const PRACTICE_CANDLES = CANDLE_PATTERNS.filter((p) => CANDLE_RECIPES[p.key])
-
-// A chart of about 30 candles with `count` different patterns planted in it,
-// each after the move it needs (a hammer comes after a drop, and so on).
-// Plain candles can still line up into a pattern by accident, so we check
-// with the detector and rebuild until it sees exactly the planted patterns.
-export function makeMarkChart(seed: number, count = 3): MarkChart {
-  const rng = makeRng(seed)
-  let last: MarkChart | null = null
-
-  for (let attempt = 0; attempt < 120; attempt++) {
-    // Pick different patterns, and at most one five-candle one (they're long).
-    const keys: string[] = []
-    while (keys.length < count) {
-      const p = rng.pick(PRACTICE_CANDLES)
-      if (keys.includes(p.key) || (p.size === 5 && keys.some((k) => CANDLE_PATTERNS.find((c) => c.key === k)?.size === 5))) continue
-      keys.push(p.key)
-    }
-
-    const candles: Candle[] = [{ time: 0, open: 100, close: 100.3, high: 100.5, low: 99.8 }]
-    const add = (c: Candle) => candles.push({ ...c, time: candles.length })
-    const planted: { key: string; start: number; end: number }[] = []
-    let step = 0
-
-    for (const key of keys) {
-      const spec = CANDLE_RECIPES[key]
-      // Recipes are bullish; a flipped (bearish) one needs the opposite move before it.
-      const base = spec.lead ?? 'down'
-      const lead: LeadIn = spec.flipped ? (base === 'down' ? 'up' : base === 'up' ? 'down' : 'flat') : base
-      const leadLength = planted.length === 0 ? 7 : rng.int(5, 6)
-      for (let k = 0; k < leadLength; k++) add(plainCandle(candles[candles.length - 1], lead, rng, step++))
-
-      let bars = SIGNAL_RECIPES[spec.recipe](R, rng)
-      if (spec.flipped) bars = bars.map(flipBar)
-      const from = candles[candles.length - 1].close
-      const start = candles.length
-      for (const b of bars) add({ time: 0, open: b.open + from, high: b.high + from, low: b.low + from, close: b.close + from })
-      planted.push({ key, start, end: candles.length - 1 })
-    }
-    for (let k = 0; k < 2; k++) add(plainCandle(candles[candles.length - 1], 'flat', rng, step++))
-
-    const all = findCandlePatterns(candles)
-    const answers = resolveOverlaps(all)
-    last = { candles, answers, all }
-    const exact =
-      answers.length === planted.length &&
-      planted.every((p) => answers.some((a) => a.pattern.key === p.key && a.start === p.start && a.end === p.end))
-    if (exact) return last
-  }
-  return last! // very unlikely: the patterns it did find are still a fair test
-}
-
-// One of your marks: "candle 12 is a hammer".
-export interface Mark {
-  index: number
-  key: string
-}
-
-export interface MarkGrade {
-  mark: Mark
-  correct: boolean // there really is that pattern on that candle
-  partOf?: CandleMatch // it's right, but the answer is a bigger pattern around it
-  actually?: CandleMatch // it's wrong: this is what's there instead (if anything)
-}
-
-export interface MarkResult {
-  grades: MarkGrade[]
-  found: CandleMatch[]
-  missed: CandleMatch[]
-  wrong: number
-}
-
-const covers = (m: CandleMatch, index: number) => m.start <= index && index <= m.end
-
-// Any candle in a pattern counts: you can mark a morning star on any of its three candles.
-export function gradeMarks(chart: MarkChart, marks: Mark[]): MarkResult {
-  const grades = marks.map((mark): MarkGrade => {
-    const answer = chart.answers.find((a) => covers(a, mark.index))
-    const correct = chart.all.some((m) => m.pattern.key === mark.key && covers(m, mark.index))
-    if (!correct) return { mark, correct, actually: answer }
-    return { mark, correct, partOf: answer && answer.pattern.key !== mark.key ? answer : undefined }
-  })
-  const found = chart.answers.filter((a) => marks.some((m) => m.key === a.pattern.key && covers(a, m.index)))
-  return {
-    grades,
-    found,
-    missed: chart.answers.filter((a) => !found.includes(a)),
-    wrong: grades.filter((g) => !g.correct).length,
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Build a candlestick pattern
