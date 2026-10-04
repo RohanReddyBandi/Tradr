@@ -165,7 +165,7 @@ export function Lessons({ finished, onFinish }: Props) {
   function open(id: string | null) {
     setOpenId(id)
     // Back to the top of the page (just the page's own scroll area: scrollIntoView would nudge the whole app).
-    requestAnimationFrame(() => document.getElementById('learn-scroll')?.scrollTo({ top: 0 }))
+    requestAnimationFrame(() => document.getElementById('practice-scroll')?.scrollTo({ top: 0 }))
   }
 
   return (

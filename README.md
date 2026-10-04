@@ -4,12 +4,10 @@ A Tinder-style trading practice game. Swipe right to buy, left to sell, up to sk
 then watch the next 30 days play out and get a breakdown of whether your call made
 sense. Fake money only.
 
-There's also a **Practice** tab with no money involved: mark the candlestick patterns
-hidden in a chart, build a named candlestick by dragging candles into shape, or draw a
-chart pattern with your finger and see whether the scanner recognises it.
-
-And a **Learn** tab for learning to spot every pattern: what to look for, examples next
-to look-alikes that aren't it, and a drill to master each one (see "Learn" below).
+A **Learn** tab teaches every pattern, charts labelled the way traders mark them up, and
+tests you on realistic charts where you call the trend, name the pattern, draw its lines,
+read the signal candle, and make the call (see "Learn" below). A **Practice** tab has quick
+drills: marking candlesticks, a name-that-pattern quiz, and eight short lessons on the basics.
 
 ## Run it
 
@@ -105,41 +103,45 @@ like generated cards; afterwards the Breakdown reveals the stock and the dates.
   time; otherwise a read that paid off 80% of the time and one that didn't 20%), then an
   unused chart of that kind is dealt. The prices are untouched.
 
-## Practice
-
-Three drills, all graded by the same detectors that grade your swipes:
-
-- **Mark**: a short chart with three candlestick patterns planted in it. Tap a candle,
-  name it, then check. Any candle inside a pattern counts. The chart is rebuilt until the
-  detector sees exactly the planted patterns, so there are no surprise answers.
-- **Build**: pick a candlestick pattern, then drag your candles' high, low, open, and
-  close until the detector recognises it. The candles before yours set up the move the
-  pattern needs (a hammer only counts after a drop).
-- **Draw**: draw a chart pattern in one stroke. The line becomes 60 candles and the chart
-  pattern scanner reads them. "Show a guide to trace" overlays the Learn tab's example.
-
-Every pattern in the Learn tab has a **Build it** or **Draw it** button that opens the drill
-on that pattern.
-
 ## Learn
 
-Learn is mainly about learning to spot the patterns:
+Learn is all about the patterns, in one place:
 
-- **Patterns** (where Learn opens): every chart and candlestick pattern, searchable and
-  filterable, with how many you've mastered. Tap one to study it:
+- **The patterns**: every chart and candlestick pattern, searchable and filterable, drawn
+  in a textbook style: support in blue, resistance and necklines in amber, numbered swing
+  points, a measured-move target, a breakout arrow, and illustrative volume underneath
+  (made up for Learn charts only; the swipe cards have no volume). Tap one to study it:
+  - the labelled example, with **Play it out** to watch a typical move to the target
   - **How to spot it**: a short checklist, in the order you'd check it, written to match
     what the detector tests (`lib/spotting.ts`)
   - what it means, the trap that catches people, and how traders usually act on it
-  - the example chart, with a "What happens next?" button that plays a typical follow-through
-  - **It is**: three fresh drawings of it, each a little different (stretched, taller or
-    flatter, key points nudged) and each checked by the detector
+  - **It is**: three fresh drawings of it, each a little different, each checked by the detector
   - **It isn't**: the look-alikes people confuse it with (its upside-down twin, and the
     patterns it's often mistaken for), plus near misses: the same candles after the wrong
-    move, the pattern before it's finished, a body too thick, swings too small. Each comes
-    with the reason it isn't, and each is checked: the detector doesn't see the pattern there.
-  - **Is it or isn't it?**: an eight-chart drill, half of them the pattern and half not.
-    Seven right masters it. Keys: Y or → for yes, N or ← for no, Enter for next.
-  - its Build it / Draw it drill from the Practice tab, and how you've read it on swipe cards
+    move, the pattern before it's finished, a body too thick, swings too small, each with
+    the reason and each checked
+  - **Build one yourself** (candlesticks) or **Draw one yourself** (chart patterns)
+  - **Find it in the wild**: practice on three full, realistic charts (the same kind the
+    swipe cards use) with the pattern in them. Averaging 80% masters it.
+- **Practice scenarios**: the same thing with any pattern and no hints.
+
+Each scenario is read the way a trader reads a chart, one question at a time
+(`lib/scenarios.ts`):
+
+1. **The trend**: up, down, or sideways (only asked when the chart has a clear answer)
+2. **The pattern**: four choices, with anything else the scanner sees on the chart left out
+3. **Its key lines**: draw them (flat levels or sloped lines, snapping to highs and lows);
+   each real line counts as found if one of yours sits within 0.7 of a normal day's range of it
+4. **The signal candle**: name the candles in the box, with a close-up
+5. **Your call**: buy, sell, or skip. Then the next 30 days play out, and the chart is
+   labelled in full
+
+## Practice
+
+Quick drills away from the game, all graded by the same detectors:
+
+- **Mark**: a short chart with three candlestick patterns planted in it. Tap a candle,
+  name it, then check. Any candle inside a pattern counts.
 - **Quiz**: name that pattern from four choices, across all of them.
 - **Basics**: eight short interactive lessons on the ideas behind the patterns (reading a
   candle, trends, support and resistance, trendlines, location, stops and targets, the
@@ -160,9 +162,9 @@ saved separately and aren't cleared by Reset.
 5. ✅ Pattern detection: 44 candlestick patterns and 58 chart patterns (including gaps, islands, diamonds, rounding and V bottoms, broadening formations, rectangles, trendlines and trendline breaks, climaxes, Fibonacci pullbacks, and changes of character), found from the raw candles alone
 6. ✅ Stats (equity curve, win rate, average R, decision accuracy, skip stats, accuracy by difficulty and by pattern), a Learn tab with every pattern, and saving to localStorage
 7. ✅ Real historical data: 270 real 90-day windows from 45 stocks and funds, mixed in with generated charts
-8. ✅ Practice tab: mark the candles, build a candlestick, draw a chart pattern
+8. ✅ Practice tab: mark the candles, a name-that-pattern quiz, and eight short lessons on the basics
 9. ✅ Chart markup on the trade setup screen (trendlines, levels, named candles and patterns), graded in the Breakdown
-10. ✅ Learn tab: a study page for every pattern (checklist, examples, look-alikes, and a drill to master it), a pattern quiz, and eight interactive lessons
+10. ✅ Learn tab: a study page for every pattern in a labelled textbook chart style, and real-world scenario practice to master each one
 
 ## How a card works
 
@@ -237,15 +239,16 @@ saved separately and aren't cleared by Reset.
 | `scripts/fetch-real-charts.mjs` | Downloads the real price history (`npm run fetch-charts`) |
 | `src/lib/library.ts`, `src/lib/examples.ts` | The Learn tab's pattern list and example charts |
 | `src/pages/StatsPage.tsx`, `src/components/EquityChart.tsx` | Stats page and the equity curve |
-| `src/pages/LearnPage.tsx`, `src/pages/learn/` | Learn tab: lessons, the pattern library, and the quiz |
-| `src/pages/learn/lessons/` | One widget per lesson |
+| `src/pages/LearnPage.tsx`, `src/pages/learn/` | Learn tab: the pattern library, pattern pages, and scenarios |
+| `src/pages/PracticePage.tsx`, `src/pages/practice/` | Practice tab: Mark, Quiz, and the Basics lessons (`practice/lessons/`) |
 | `src/lib/lessons.ts`, `src/lib/quiz.ts` | The lessons' charts and arithmetic, and quiz questions |
-| `src/lib/spotting.ts`, `src/lib/patternStudy.ts` | Each pattern's spotting checklist, and its examples, look-alikes, and drill |
-| `src/pages/learn/PatternDetail.tsx`, `src/pages/learn/SpotDrill.tsx` | A pattern's study page and its "Is it or isn't it?" drill |
+| `src/lib/spotting.ts`, `src/lib/patternStudy.ts` | Each pattern's spotting checklist, and its examples and look-alikes |
+| `src/lib/scenarios.ts`, `src/pages/learn/ScenarioPractice.tsx` | Real-world practice: realistic charts, the questions, and grading |
+| `src/lib/annotate.ts`, `src/components/AnnotatedChart.tsx` | The Learn chart style: labelled support, resistance, swing points, targets, volume |
+| `src/pages/learn/PatternDetail.tsx` | A pattern's study page |
 | `src/game/useLearn.ts` | Lesson and quiz progress, saved in the browser |
 | `src/components/SvgChart.tsx`, `src/components/MiniChart.tsx` | Light SVG candlestick charts for lessons and pattern cards |
 | `src/lib/practice.ts` | The Practice drills' logic: planting patterns, grading marks, turning a drawing into candles |
-| `src/pages/PracticePage.tsx`, `src/pages/practice/` | The Practice tab and its three drills |
 | `src/game/usePractice.ts` | Practice progress, saved in the browser |
 | `src/components/ChartLayers.tsx`, `src/components/chartScale.ts` | Plain SVG candles and markup, shared by Learn and Practice |
 

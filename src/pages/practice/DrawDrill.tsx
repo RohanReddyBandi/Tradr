@@ -70,7 +70,7 @@ interface Result {
   matches: ChartPatternMatch[]
 }
 
-function DrawPad({ target, onDrawn, onNext }: { target: string; onDrawn: (key: string) => void; onNext: () => void }) {
+export function DrawPad({ target, onDrawn, onNext }: { target: string; onDrawn: (key: string) => void; onNext: () => void }) {
   const entry = entryByKey(target)!
   const boxRef = useRef<HTMLDivElement>(null)
   const width = useWidth(boxRef)

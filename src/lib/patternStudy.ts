@@ -6,10 +6,9 @@ import { CANDLE_RECIPES, CHART_SHAPES, GAPS, MIRRORS, R, candleExample, candlesT
 import { SIGNAL_RECIPES } from './signalCandles'
 import { entryByKey } from './library'
 
-// Studying one pattern in the Learn tab: fresh drawings of it, look-alikes
-// that aren't it (each with the reason why), and the rounds of the "Is it or
-// isn't it?" drill. Everything is checked with the same detectors the game
-// uses, so "it is" really is, and "it isn't" really isn't.
+// Studying one pattern in the Learn tab: fresh drawings of it, and look-alikes
+// that aren't it (each with the reason why). Everything is checked with the
+// same detectors the game uses, so "it is" really is, and "it isn't" really isn't.
 
 export interface Specimen {
   candles: Candle[]
@@ -341,33 +340,4 @@ export function examplesOf(key: string, seed: number, count = 3): Specimen[] {
     if (d.ok) out.push({ candles: d.candles, shapes: d.shapes, is: true, kind: 'example', shows: key, note: `${entry.name}. ${entry.meaning}` })
   }
   return out
-}
-
-// ---------------------------------------------------------------------------
-// The drill
-// ---------------------------------------------------------------------------
-
-export const DRILL_ROUNDS = 8
-export const MASTERED = 7 // right answers out of DRILL_ROUNDS to call a pattern mastered
-
-// Eight charts, half of them the pattern and half not, shuffled.
-export function drillRounds(key: string, seed: number): Specimen[] {
-  const rng = makeRng(seed)
-  const yes = examplesOf(key, rng.int(1, 1e9), DRILL_ROUNDS / 2)
-  const pool = [...nonExamples(key, rng.int(1, 1e9)), ...nonExamples(key, rng.int(1, 1e9))]
-  // Prefer a spread of different "isn't it" kinds over repeats of one.
-  const no: Specimen[] = []
-  const seen = new Set<string>()
-  for (const s of pool) {
-    const kindOfMiss = s.note.slice(0, 24)
-    if (!seen.has(kindOfMiss) && no.length < DRILL_ROUNDS / 2) {
-      no.push(s)
-      seen.add(kindOfMiss)
-    }
-  }
-  for (const s of pool) if (no.length < DRILL_ROUNDS / 2 && !no.includes(s)) no.push(s)
-  return [...yes, ...no]
-    .map((s) => [rng.next(), s] as const)
-    .sort((a, b) => a[0] - b[0])
-    .map(([, s]) => s)
 }

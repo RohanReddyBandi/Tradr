@@ -203,11 +203,12 @@ export function simulateRun(winRate: number, ratio: number, count: number, seed:
 // A typical follow-through after an example: price moves the way the pattern
 // leans (or drifts sideways for a neutral one). For illustration only: real
 // patterns fail too.
-export function followThrough(example: PatternExample, bias: Bias, seed = 5): Candle[] {
+// With a `goal` (a measured-move target), the move ends just past it.
+export function followThrough(example: PatternExample, bias: Bias, seed = 5, goal?: number | null): Candle[] {
   const { candles } = example
   const last = candles[candles.length - 1]
   const prices = candles.flatMap((c) => [c.low, c.high])
-  const height = Math.max((Math.max(...prices) - Math.min(...prices)) * 0.55, 5 * R)
+  const height = goal ? Math.abs(goal - last.close) * 1.04 : Math.max((Math.max(...prices) - Math.min(...prices)) * 0.55, 5 * R)
   const count = Math.max(8, Math.round(candles.length * 0.3))
   const s = bias === 'bullish' ? 1 : bias === 'bearish' ? -1 : 0
   const wiggle = height * 0.15

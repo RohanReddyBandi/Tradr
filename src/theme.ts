@@ -14,4 +14,14 @@ export const COLORS = {
   pen: '#6cb8ff', // your own drawings
 }
 
+// The Learn tab's textbook chart style.
+export const LEARN = {
+  support: '#4c8dff',
+  resistance: '#f5a524',
+  target: '#f2f2f2',
+  marker: '#2f7bf6', // numbered swing points
+  now: '#38bdf8', // the decision point
+  yours: '#e8e8e8', // lines you draw in practice
+}
+
 export const MONO_FONT = "'Geist Mono Variable', ui-monospace, monospace"

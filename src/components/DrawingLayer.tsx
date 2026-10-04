@@ -24,9 +24,10 @@ interface ShapesProps {
   extendTo?: number // carry trendlines on, dashed, to this candle position (the replay)
   focus?: number | null // one drawing to highlight; the rest fade
   opacity?: number
+  color?: string // the pen (blue on the trade setup chart; Learn uses white)
 }
 
-export function DrawingShapes({ drawings, candles, x, y, width, status, extendTo, focus = null, opacity = 1 }: ShapesProps) {
+export function DrawingShapes({ drawings, candles, x, y, width, status, extendTo, focus = null, opacity = 1, color: pen = COLORS.pen }: ShapesProps) {
   const slot = Math.abs(x(1) - x(0))
   const fade = (k: number) => (focus !== null && focus !== k ? 0.2 : 1) * opacity
 
@@ -53,9 +54,9 @@ export function DrawingShapes({ drawings, candles, x, y, width, status, extendTo
           const w = label.length * 6.6 + 10
           return (
             <g key={k} opacity={fade(k) * (status?.(k) === 'bad' ? 0.5 : 1)}>
-              <line x1={0} y1={py} x2={width} y2={py} stroke={COLORS.pen} strokeWidth={1.5} strokeDasharray="7 4" />
-              <rect x={width - w - 2} y={py - 9} width={w} height={18} rx={4} fill={COLORS.base} stroke={COLORS.pen} strokeOpacity={0.6} />
-              <text x={width - w / 2 - 2} y={py + 4} textAnchor="middle" fontSize={10.5} fontFamily={MONO_FONT} fill={COLORS.pen}>
+              <line x1={0} y1={py} x2={width} y2={py} stroke={pen} strokeWidth={1.5} strokeDasharray="7 4" />
+              <rect x={width - w - 2} y={py - 9} width={w} height={18} rx={4} fill={COLORS.base} stroke={pen} strokeOpacity={0.6} />
+              <text x={width - w / 2 - 2} y={py + 4} textAnchor="middle" fontSize={10.5} fontFamily={MONO_FONT} fill={pen}>
                 {label}
               </text>
             </g>
@@ -72,15 +73,15 @@ export function DrawingShapes({ drawings, candles, x, y, width, status, extendTo
                   y1={y(b.price)}
                   x2={x(extendTo)}
                   y2={y(b.price + slope * (extendTo - b.index))}
-                  stroke={COLORS.pen}
+                  stroke={pen}
                   strokeWidth={1.25}
                   strokeDasharray="3 4"
                   opacity={0.6}
                 />
               )}
-              <line x1={x(a.index)} y1={y(a.price)} x2={x(b.index)} y2={y(b.price)} stroke={COLORS.pen} strokeWidth={2} strokeLinecap="round" />
-              <circle cx={x(a.index)} cy={y(a.price)} r={3.5} fill={COLORS.base} stroke={COLORS.pen} strokeWidth={1.5} />
-              <circle cx={x(b.index)} cy={y(b.price)} r={3.5} fill={COLORS.base} stroke={COLORS.pen} strokeWidth={1.5} />
+              <line x1={x(a.index)} y1={y(a.price)} x2={x(b.index)} y2={y(b.price)} stroke={pen} strokeWidth={2} strokeLinecap="round" />
+              <circle cx={x(a.index)} cy={y(a.price)} r={3.5} fill={COLORS.base} stroke={pen} strokeWidth={1.5} />
+              <circle cx={x(b.index)} cy={y(b.price)} r={3.5} fill={COLORS.base} stroke={pen} strokeWidth={1.5} />
             </g>
           )
         }
@@ -95,9 +96,9 @@ export function DrawingShapes({ drawings, candles, x, y, width, status, extendTo
             width={slot + 2}
             height={y(c.low) - y(c.high) + 8}
             rx={3}
-            fill={COLORS.pen}
+            fill={pen}
             fillOpacity={0.1}
-            stroke={COLORS.pen}
+            stroke={pen}
             strokeWidth={1.25}
             strokeDasharray="3 2"
           />
@@ -106,7 +107,7 @@ export function DrawingShapes({ drawings, candles, x, y, width, status, extendTo
       {tags.map(({ k, d, text, w, left, lane, mark }) => {
         if (d.kind !== 'candle') return null
         const bottom = y(candles[d.index].high) - 8 - lane * 21
-        const color = mark === 'good' ? COLORS.up : mark === 'bad' ? COLORS.down : COLORS.pen
+        const color = mark === 'good' ? COLORS.up : mark === 'bad' ? COLORS.down : pen
         return (
           <g key={`tag-${k}`} opacity={fade(k)}>
             <line x1={x(d.index)} y1={bottom} x2={x(d.index)} y2={y(candles[d.index].high) - 4} stroke={color} strokeOpacity={0.6} />
@@ -130,13 +131,14 @@ interface LayerProps {
   selected: number | null // the candle being named right now
   onAdd: (drawing: Drawing) => void
   onPickCandle: (index: number) => void
+  color?: string
 }
 
 // The trade setup chart's drawing surface. With the trendline tool you drag
 // from one point to another; with the level tool you tap (or drag) a height;
 // with the candle tool you tap a candle to name it. Points jump onto a
 // nearby high or low, like the magnet in charting apps.
-export function DrawingLayer({ project, candles, slots, tool, drawings, selected, onAdd, onPickCandle }: LayerProps) {
+export function DrawingLayer({ project, candles, slots, tool, drawings, selected, onAdd, onPickCandle, color = COLORS.pen }: LayerProps) {
   const { width, height } = project
   const x = (i: number) => project.x(i) ?? -100
   const y = (p: number) => project.y(p) ?? -100
@@ -241,9 +243,9 @@ export function DrawingLayer({ project, candles, slots, tool, drawings, selected
         {highlight !== null && candles[highlight] && (
           <rect x={x(highlight) - slot / 2} y={0} width={slot} height={height} fill="#ffffff" opacity={0.08} />
         )}
-        <DrawingShapes drawings={drawings} candles={candles} x={x} y={y} width={width} extendTo={slots - 1} />
-        {draft && <DrawingShapes drawings={[draft]} candles={candles} x={x} y={y} width={width} extendTo={slots - 1} opacity={0.75} />}
-        {ring && <circle cx={x(ring.index)} cy={y(ring.price)} r={7} fill="none" stroke={COLORS.pen} strokeWidth={1.5} />}
+        <DrawingShapes drawings={drawings} candles={candles} x={x} y={y} width={width} extendTo={slots - 1} color={color} />
+        {draft && <DrawingShapes drawings={[draft]} candles={candles} x={x} y={y} width={width} extendTo={slots - 1} opacity={0.75} color={color} />}
+        {ring && <circle cx={x(ring.index)} cy={y(ring.price)} r={7} fill="none" stroke={color} strokeWidth={1.5} />}
       </svg>
       {tool !== 'trade' && (
         <div

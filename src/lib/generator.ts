@@ -270,6 +270,9 @@ export interface Look {
   length: number
   backstory: Backstory
   style: CandleStyle
+  // The candlestick pattern to finish on (the Learn tab's scenarios ask for a
+  // particular one). Drawn bullish, and flipped with the chart on bearish cards.
+  signal?: SignalKey
 }
 
 // A blueprint that fits the chart: waypoints in order, from the first candle to `end`.
@@ -318,8 +321,8 @@ export function generateCard(
   //    length first so the price path stops just before it. Hard choppy
   //    charts often end on a decoy: a strong candle, bullish or bearish,
   //    from the middle of the range, where it means little.
-  const decoy = recipe.key === 'chop' && difficulty === 'hard' && rng.chance(0.7)
-  const signalKey = decoy ? rng.pick(DECOY_SIGNALS) : pickSignal(rng, recipe.signals, difficulty)
+  const decoy = !look.signal && recipe.key === 'chop' && difficulty === 'hard' && rng.chance(0.7)
+  const signalKey = look.signal ?? (decoy ? rng.pick(DECOY_SIGNALS) : pickSignal(rng, recipe.signals, difficulty))
   let signal = SIGNAL_RECIPES[signalKey](R, rng)
   if (decoy && rng.chance(0.5)) signal = signal.map(flipBar)
   let end = visible - signal.length - 1

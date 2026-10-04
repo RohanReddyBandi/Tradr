@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from 'react'
 import { STARTING_BALANCE, type Game } from '../game/useGame'
 import type { PracticeProgress } from '../game/usePractice'
-import type { LearnProgress } from '../game/useLearn'
+import { masteredKeys, type LearnProgress } from '../game/useLearn'
 import { LESSON_IDS } from '../lib/lessons'
 import { computeStats } from '../lib/stats'
 import { DRAWABLE, PRACTICE_CANDLES } from '../lib/practice'
-import { findEntry } from '../lib/library'
+import { LIBRARY, findEntry } from '../lib/library'
 import { EquityChart } from '../components/EquityChart'
 import { formatMoney, formatR, formatSignedMoney, formatSignedPercent } from '../format'
 
@@ -179,7 +179,18 @@ export function StatsPage({ game, practice, learn, onPlay, onLearn }: Props) {
 
             <Section title="Learn">
               <ScoreRow
-                name="Lessons finished"
+                name="Patterns mastered"
+                detail={`${masteredKeys(learn).length}/${LIBRARY.length}`}
+                share={masteredKeys(learn).length / LIBRARY.length}
+                progress
+              />
+              <ScoreRow
+                name="Practice scenarios"
+                detail={learn.mixed.played ? `${learn.mixed.played} played · average ${Math.round((learn.mixed.points / learn.mixed.played) * 100)}%` : 'not tried yet'}
+                share={learn.mixed.played ? learn.mixed.points / learn.mixed.played : null}
+              />
+              <ScoreRow
+                name="Basics lessons finished"
                 detail={`${learn.lessons.filter((id) => LESSON_IDS.includes(id)).length}/${LESSON_IDS.length}`}
                 share={learn.lessons.filter((id) => LESSON_IDS.includes(id)).length / LESSON_IDS.length}
                 progress

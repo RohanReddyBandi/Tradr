@@ -68,7 +68,7 @@ export function BuildDrill({ built, focus, onBuilt }: Props) {
 const PAD = 12
 const LABELS = 26 // room under the candles for "Before" / "Your candles"
 
-function BuildEditor({ target, onBuilt, onNext }: { target: string; onBuilt: (key: string) => void; onNext: () => void }) {
+export function BuildEditor({ target, onBuilt, onNext }: { target: string; onBuilt: (key: string) => void; onNext: () => void }) {
   const task = useMemo(() => buildTask(target), [target])
   const entry = entryByKey(target)!
   const [yours, setYours] = useState(task.start)

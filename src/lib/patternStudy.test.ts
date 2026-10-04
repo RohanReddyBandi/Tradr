@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LIBRARY } from './library'
-import { DRILL_ROUNDS, detect, drillRounds, examplesOf, lookAlikes, nonExamples, twinOf } from './patternStudy'
+import { detect, examplesOf, lookAlikes, nonExamples, twinOf } from './patternStudy'
 import { SPOT } from './spotting'
 
 describe('studying a pattern', () => {
@@ -34,13 +34,6 @@ describe('studying a pattern', () => {
     expect(thin).toEqual([])
   })
 
-  it('deals a drill of eight, half of them the pattern', () => {
-    for (const key of ['hammer', 'doubleBottom', 'bearFlag', 'morningStar', 'volatilitySqueeze']) {
-      const rounds = drillRounds(key, 3)
-      expect(rounds).toHaveLength(DRILL_ROUNDS)
-      expect(rounds.filter((r) => r.is)).toHaveLength(DRILL_ROUNDS / 2)
-    }
-  })
 })
 
 describe('how to trade it', () => {
