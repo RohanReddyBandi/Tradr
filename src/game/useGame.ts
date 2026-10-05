@@ -6,6 +6,7 @@ import { analyze, type Breakdown } from '../lib/analyze'
 import { DEFAULT_POSITION_SHARE, type Direction, type TradePlan } from '../lib/trade'
 import type { TradeRecord } from '../lib/stats'
 import { gradeMarkup, type ChartMarkup, type MarkupReview } from '../lib/userMarkup'
+import { isNumber, isTradeRecord } from './saved'
 
 export const STARTING_BALANCE = 10_000
 
@@ -43,8 +44,10 @@ function load(): Saved | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    const saved = JSON.parse(raw) as Saved
-    return saved.version === 1 && typeof saved.balance === 'number' && Array.isArray(saved.history) ? saved : null
+    const saved = JSON.parse(raw) as Partial<Saved> | null
+    if (saved?.version !== 1 || !isNumber(saved.balance) || !Array.isArray(saved.history)) return null
+    // Keep every record that checks out; a damaged one is dropped, not fatal.
+    return { version: 1, balance: saved.balance, history: saved.history.filter(isTradeRecord) }
   } catch {
     return null
   }

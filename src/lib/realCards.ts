@@ -15,20 +15,25 @@ export interface RealWindow {
   bars: number[][] // [open, high, low, close, volume] for 90 days (older files have no volume)
 }
 
-// The real charts are about 700 KB, so they're loaded as a separate file the
+// The saved file: where the prices came from, and the windows themselves.
+export interface RealData {
+  meta: { source: string; adjusted: string }
+  windows: RealWindow[]
+}
+
+// The real charts are close to 1 MB, so they're loaded as a separate file the
 // first time they're needed instead of slowing down the first page load.
 //
-// The file isn't in the Git repo (the prices come from Yahoo Finance, whose
-// terms don't allow redistributing them), so it may not exist: after cloning,
-// run `npm run fetch-charts` to create it. import.meta.glob is Vite's way of
-// saying "load this file if it's there", so a missing file just means an
-// empty list here, and every card is a generated one.
-const dataFile = import.meta.glob<{ default: RealWindow[] }>('../data/realCharts.json')
+// The prices are Quandl's public-domain WIKI Prices (see
+// scripts/fetch-real-charts.mjs), so the file is in the repo and ships with
+// the site. import.meta.glob is Vite's way of saying "load this file if it's
+// there": a copy without it simply deals generated charts only.
+const dataFile = import.meta.glob<{ default: RealData }>('../data/historicalCharts.json')
 let windows: RealWindow[] | null = null
 
 export async function loadRealWindows(): Promise<RealWindow[]> {
   const load = Object.values(dataFile)[0]
-  windows ??= load ? (await load()).default : []
+  windows ??= load ? ((await load()).default.windows ?? []) : []
   return windows
 }
 

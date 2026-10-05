@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Secrets (API keys) never go in the repo.
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -23,6 +28,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Real price data from Yahoo Finance: not ours to redistribute, so it stays
-# out of the repo. Create it locally with `npm run fetch-charts`.
+# The old real-chart file, from Yahoo Finance: not ours to redistribute, so it
+# never goes in the repo. (The app now uses src/data/historicalCharts.json,
+# from public-domain data, which does.)
 src/data/realCharts.json

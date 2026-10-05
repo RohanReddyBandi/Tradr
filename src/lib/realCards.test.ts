@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { drawRealCard, makeRealCard, readPaidOff, type RealWindow } from './realCards'
+import { drawRealCard, makeRealCard, readPaidOff, type RealData, type RealWindow } from './realCards'
 import { analyze } from './analyze'
 import { defaultPlan } from './trade'
 
-// The data file isn't in the repo (run `npm run fetch-charts` to create it),
-// so these tests only run when it's there. `eager` loads it right away.
-const files = import.meta.glob<{ default: RealWindow[] }>('../data/realCharts.json', { eager: true })
-const pool: RealWindow[] = Object.values(files)[0]?.default ?? []
+// These tests run when the data file is there (`npm run fetch-charts` makes
+// it). `eager` loads it right away.
+const files = import.meta.glob<{ default: RealData }>('../data/historicalCharts.json', { eager: true })
+const pool: RealWindow[] = Object.values(files)[0]?.default.windows ?? []
 const hasData = pool.length > 0
 
 describe.skipIf(!hasData)('the saved real charts', () => {

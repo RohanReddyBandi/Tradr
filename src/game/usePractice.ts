@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { isTextList } from './saved'
 
 // The patterns you've built and drawn yourself on their Learn pages, saved in
 // the browser separately from the trading game (resetting your balance
@@ -17,8 +18,8 @@ const EMPTY: PracticeProgress = { version: 1, built: [], drawn: [] }
 function load(): PracticeProgress {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    const saved = raw ? (JSON.parse(raw) as PracticeProgress) : null
-    return saved?.version === 1 && Array.isArray(saved.built) && Array.isArray(saved.drawn) ? { version: 1, built: saved.built, drawn: saved.drawn } : EMPTY
+    const saved = raw ? (JSON.parse(raw) as Partial<PracticeProgress> | null) : null
+    return saved?.version === 1 && isTextList(saved.built) && isTextList(saved.drawn) ? { version: 1, built: saved.built, drawn: saved.drawn } : EMPTY
   } catch {
     return EMPTY
   }

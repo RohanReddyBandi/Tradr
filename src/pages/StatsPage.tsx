@@ -214,6 +214,11 @@ export function StatsPage({ game, practice, learn, onPlay, onLearn }: Props) {
           <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="underline hover:text-soft">
             TradingView Lightweight Charts™
           </a>
+          . Real price history from Quandl&rsquo;s{' '}
+          <a href="https://data.nasdaq.com/databases/WIKIP" target="_blank" rel="noreferrer" className="underline hover:text-soft">
+            WIKI Prices
+          </a>{' '}
+          (public domain), 1996 to 2018.
         </p>
       </div>
     </div>

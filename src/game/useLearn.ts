@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { SCENARIO_MASTERY } from '../lib/scenarios'
+import { isNumber } from './saved'
+import { entryByKey } from '../lib/library'
 
 // Learn tab progress (pattern mastery and scenarios), saved in the browser
 // separately from the game. Same try/catch rules as useGame.
@@ -17,14 +19,23 @@ const STORAGE_KEY = 'tradr:learn:v1'
 const NO_EXITS = { played: 0, points: 0, best: 0 }
 const EMPTY: LearnProgress = { version: 1, scenarios: {}, mixed: { played: 0, points: 0 }, exits: NO_EXITS }
 
+// Every number in it must be a real number; anything else falls back to empty.
+const numbers = <T extends Record<string, number>>(value: unknown, fallback: T): T =>
+  value && typeof value === 'object' && Object.keys(fallback).every((k) => isNumber((value as Record<string, unknown>)[k])) ? (value as T) : fallback
+
 function load(): LearnProgress {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    const saved = raw ? (JSON.parse(raw) as LearnProgress) : null
+    const saved = raw ? (JSON.parse(raw) as Partial<LearnProgress> | null) : null
+    if (saved?.version !== 1) return EMPTY
     // Saves from before scenarios (or the exits drill) existed simply start with none.
-    return saved?.version === 1
-      ? { version: 1, scenarios: saved.scenarios ?? {}, mixed: saved.mixed ?? { played: 0, points: 0 }, exits: saved.exits ?? NO_EXITS }
-      : EMPTY
+    const scenarios: LearnProgress['scenarios'] = {}
+    for (const [key, run] of Object.entries(saved.scenarios ?? {})) {
+      if (!entryByKey(key)) continue // only real pattern keys (this also keeps out "__proto__")
+      const checked = numbers(run, { best: -1, runs: -1 })
+      if (checked.best >= 0) scenarios[key] = checked
+    }
+    return { version: 1, scenarios, mixed: numbers(saved.mixed, { played: 0, points: 0 }), exits: numbers(saved.exits, NO_EXITS) }
   } catch {
     return EMPTY
   }

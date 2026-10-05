@@ -15,7 +15,7 @@ profit go, with a drill to practice placing them (see "Learn" below).
 git clone https://github.com/RohanReddyBandi/Tradr.git
 cd Tradr
 npm install
-npm run fetch-charts   # optional: downloads the real charts (see "Real charts")
+npm run fetch-charts   # optional: re-downloads the real charts (see "Real charts")
 npm run dev
 ```
 
@@ -33,8 +33,21 @@ Tradr is a static site (no server), deployed on [Vercel](https://vercel.com):
    The app already includes Vercel's analytics component; it sends nothing until
    that's switched on, and nothing at all when running locally.
 
-The deployed site uses generated charts only, since the real-chart data isn't in the repo.
-That also means the deployed Learn tab has no **Real-world charts** (they need the same file).
+Once `src/data/historicalCharts.json` is in the repo (see "Real charts"), the deployed
+site has real charts on the swipe cards and in Learn's **Real-world charts** too.
+
+## Security
+
+- The site sends security headers (set in `vercel.json`): a content security policy
+  that only allows the site's own scripts, styles, fonts and connections, no framing by
+  other sites, no content sniffing, a strict referrer policy, and no camera,
+  microphone, location or payment access. `npm run preview` sends the same ones (minus
+  the HTTPS-only parts), so a build can be checked locally.
+- There's no server and no accounts: everything you do is saved in your own browser.
+  Saved data is checked field by field when it's read back, so a damaged record is
+  dropped instead of breaking a page, and if anything does crash, a fallback screen
+  offers a reload (or clearing the saved data).
+- API keys live only in `.env.local`, which Git ignores (as are all `.env` files).
 
 ## Controls
 
@@ -86,19 +99,20 @@ The Breakdown of a hard card explains what made it hard.
 About a third of the cards are real price history. Before the trade they look exactly
 like generated cards; afterwards the Breakdown reveals the stock and the dates.
 
-- **Source:** Yahoo Finance's public chart endpoint
-  (`query1.finance.yahoo.com/v8/finance/chart/<TICKER>`), which needs no API key.
-  It's unofficial, so it may change without notice, and the data is for personal,
-  educational use. Check Yahoo's terms before publishing the data file anywhere public.
-- **Getting the data:** `npm run fetch-charts` downloads 15 years of daily prices (and
-  volume) for 45 well-known tickers and saves 6 random 90-day windows each to
-  `src/data/realCharts.json` (prices are split-adjusted; windows under $5 or with
-  broken days are skipped), plus 15 windows around well-known one-day moves (listed by
-  date in the script; the replay starts with the move). The app bundles that file, so
-  it never calls Yahoo itself.
-- **Not in the repo:** Yahoo's data isn't ours to redistribute, so the file is in
-  `.gitignore`. Each copy of the app downloads its own; without it, the app simply
-  deals generated charts only.
+- **Source:** Quandl's [WIKI Prices](https://data.nasdaq.com/databases/WIKIP) on Nasdaq
+  Data Link: end-of-day prices for about 3,000 US companies, which Nasdaq describes as
+  "curated by the Quandl community and released into the public domain". So the data
+  file is in the repo and ships with the site. The dataset stopped updating in March
+  2018, so every real chart is from 1996 to early 2018.
+- **Getting the data:** `npm run fetch-charts` downloads the daily prices and volume
+  (split- and dividend-adjusted) for 45 well-known companies and saves 6 random 90-day
+  windows each to `src/data/historicalCharts.json` (windows under $5, with missing
+  days, or with broken jumps are skipped), plus windows around well-known one-day moves
+  (listed by date in the script, each checked against the data; the replay starts with
+  the move). It needs a free Nasdaq Data Link API key in `.env.local`
+  (`NASDAQ_DATA_LINK_API_KEY=...`), which Git ignores. The app bundles the file, so it
+  never calls any data service itself.
+- **Without the file**, the app simply deals generated charts only.
 - **Grading:** a real chart has no built-in answer, so the pattern scanner reads it and
   its read is the answer key: bullish patterns add to a score, bearish ones subtract,
   and a weak or mixed score counts as "no clear setup".
@@ -191,7 +205,7 @@ the exits drill, and what you've built and drawn) is saved separately and isn't 
 4. ✅ Breakdown: replay, markup drawn on the chart, decision graded separately from the outcome, and the best stop and target in hindsight with an accuracy score for yours
 5. ✅ Pattern detection: 44 candlestick patterns and 58 chart patterns (including gaps, islands, diamonds, rounding and V bottoms, broadening formations, rectangles, trendlines and trendline breaks, climaxes, Fibonacci pullbacks, and changes of character), found from the raw candles alone
 6. ✅ Stats (equity curve, win rate, average R, decision accuracy, skip stats, accuracy by difficulty and by pattern), a Learn tab with every pattern, and saving to localStorage
-7. ✅ Real historical data: 285 real 90-day windows from 45 stocks and funds (15 around well-known moves), mixed in with generated charts and used for Learn's real-world charts
+7. ✅ Real historical data: public-domain daily prices (1996 to 2018) for 45 well-known companies, mixed in with generated charts and used for Learn's real-world charts
 8. ✅ Build a candlestick and draw a chart pattern yourself, on each pattern's page
 9. ✅ Chart markup on the trade setup screen (trendlines, levels, named candles and patterns), graded in the Breakdown
 10. ✅ Learn tab: a study page for every pattern in a labelled textbook chart style, and real-world scenario practice to master each one
