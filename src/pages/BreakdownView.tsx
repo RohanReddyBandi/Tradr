@@ -8,7 +8,7 @@ import { Markup } from '../components/Markup'
 import { DifficultyBadge } from '../components/DifficultyBadge'
 import { findEntry } from '../lib/library'
 import { COLORS } from '../theme'
-import { formatMoney, formatSignedMoney, formatSignedPercent } from '../format'
+import { dateRange, formatMoney, formatSignedMoney, formatSignedPercent } from '../format'
 import type { BestLevels } from '../lib/bestLevels'
 import { EXITS_FOCUS } from '../lib/exits'
 import { riskAndReward, sign, type TradePlan, type TradeResult } from '../lib/trade'
@@ -368,15 +368,6 @@ function BestLevelsSection({ b, best }: { b: Breakdown; best: BestLevels }) {
   )
 }
 
-// "Mar 4 – Jul 12, 2019", or with both years if it crosses New Year.
-function dateRange(from: string, to: string) {
-  const f = new Date(`${from}T00:00:00Z`)
-  const t = new Date(`${to}T00:00:00Z`)
-  const opts = { month: 'short', day: 'numeric', timeZone: 'UTC' } as const
-  const sameYear = f.getUTCFullYear() === t.getUTCFullYear()
-  const start = f.toLocaleDateString('en-US', sameYear ? opts : { ...opts, year: 'numeric' })
-  return `${start} – ${t.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`
-}
 
 interface ChipProps {
   finding: Finding

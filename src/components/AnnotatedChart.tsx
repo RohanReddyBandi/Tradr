@@ -23,6 +23,7 @@ interface Props {
   shadeFrom?: number // shade the replay zone from this candle position on
   label: string // for screen readers
   overlay?: (project: Projector) => ReactNode // drawing tools on top of the price area
+  bodyWidth?: number // candle bodies this many pixels wide (default: 60% of a slot)
   children?: (scale: Scale, plotWidth: number) => ReactNode // extra SVG over the candles
 }
 
@@ -48,7 +49,7 @@ function ticks(min: number, max: number, count = 5) {
   return out
 }
 
-export function AnnotatedChart({ candles, slots, range, notes = [], volume, height, title, compact, shadeFrom, label, overlay, children }: Props) {
+export function AnnotatedChart({ candles, slots, range, notes = [], volume, height, title, compact, shadeFrom, label, overlay, bodyWidth, children }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const width = useWidth(box)
   const axis = compact ? 0 : AXIS
@@ -119,7 +120,7 @@ export function AnnotatedChart({ candles, slots, range, notes = [], volume, heig
               )
             })}
 
-          <CandleLayer candles={candles} scale={scale} />
+          <CandleLayer candles={candles} scale={scale} body={bodyWidth} />
           <NoteLayer notes={notes} scale={scale} plot={plot} height={height} compact={!!compact} fontSize={fontSize} candles={candles} />
           {children?.(scale, plot)}
         </svg>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { LIBRARY } from './library'
-import { gradeLines, lineMatches, makeScenario, rightCall, scoreScenario, trendOf } from './scenarios'
+import { gradeLines, lineMatches, makeRealScenario, makeScenario, realChoices, rightCall, scoreScenario, trendOf } from './scenarios'
+import { generateCard } from './generator'
+import type { RealWindow } from './realCards'
 import { findCandlePatterns } from './candlePatterns'
 import { findChartPatterns } from './chartPatterns'
 
@@ -75,5 +77,40 @@ describe('scenarios', () => {
     expect(trendOf(up)).toBe('up')
     const flat = Array.from({ length: 60 }, (_, i) => ({ time: i, open: 100, close: i % 2 ? 101 : 99, high: 101.5, low: 98.5 }))
     expect(trendOf(flat)).toBe('sideways')
+  })
+})
+
+describe('real-world scenarios', () => {
+  // Stand-ins for real price history (the real file isn't in the repo): generated
+  // charts packed the way the fetch script saves real ones, with volume.
+  const windows: RealWindow[] = []
+  for (let seed = 900; windows.length < 12; seed += 31) {
+    const card = generateCard(1, seed, 'medium')
+    if (card.candles.length < 60 || card.future.length < 30) continue
+    const i = windows.length
+    const bars = [...card.candles.slice(-60), ...card.future.slice(0, 30)].map((c) => [c.open, c.high, c.low, c.close, 1_000_000 + i])
+    windows.push({ ticker: `T${i}`, name: `Test ${i}`, from: '2021-01-04', decision: '2021-03-31', to: '2021-05-12', famous: i === 0, bars })
+  }
+
+  it('reads a real chart with the scanner, and says which stock it was', () => {
+    const s = makeRealScenario(windows, null, 7, 0)!
+    expect(s).not.toBeNull()
+    expect(s.real?.ticker).toMatch(/^T\d+$/)
+    expect(s.candles).toHaveLength(60)
+    expect(s.future).toHaveLength(30)
+    expect(s.pattern).not.toBeNull() // only charts with a pattern to name are used
+    expect(s.realVolume).toBe(true)
+    expect(s.volume).toHaveLength(90)
+  })
+
+  it("doesn't repeat a chart in a run until it has used them all", () => {
+    const fits = realChoices(windows, null).length
+    const seen = Array.from({ length: fits }, (_, n) => makeRealScenario(windows, null, 11, n)!.real!.ticker)
+    expect(new Set(seen).size).toBe(fits)
+  })
+
+  it('only uses charts where the scanner found the pattern being practiced', () => {
+    const key = realChoices(windows, null)[0].patterns[0]
+    for (let n = 0; n < 4; n++) expect(makeRealScenario(windows, key, 3, n)!.pattern?.key).toBe(key)
   })
 })

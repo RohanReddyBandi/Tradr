@@ -34,6 +34,7 @@ Tradr is a static site (no server), deployed on [Vercel](https://vercel.com):
    that's switched on, and nothing at all when running locally.
 
 The deployed site uses generated charts only, since the real-chart data isn't in the repo.
+That also means the deployed Learn tab has no **Real-world charts** (they need the same file).
 
 ## Controls
 
@@ -89,10 +90,12 @@ like generated cards; afterwards the Breakdown reveals the stock and the dates.
   (`query1.finance.yahoo.com/v8/finance/chart/<TICKER>`), which needs no API key.
   It's unofficial, so it may change without notice, and the data is for personal,
   educational use. Check Yahoo's terms before publishing the data file anywhere public.
-- **Getting the data:** `npm run fetch-charts` downloads 15 years of daily prices for 45
-  well-known tickers and saves 6 random 90-day windows each to
+- **Getting the data:** `npm run fetch-charts` downloads 15 years of daily prices (and
+  volume) for 45 well-known tickers and saves 6 random 90-day windows each to
   `src/data/realCharts.json` (prices are split-adjusted; windows under $5 or with
-  broken days are skipped). The app bundles that file, so it never calls Yahoo itself.
+  broken days are skipped), plus 15 windows around well-known one-day moves (listed by
+  date in the script; the replay starts with the move). The app bundles that file, so
+  it never calls Yahoo itself.
 - **Not in the repo:** Yahoo's data isn't ours to redistribute, so the file is in
   `.gitignore`. Each copy of the app downloads its own; without it, the app simply
   deals generated charts only.
@@ -112,7 +115,10 @@ Learn is all about the patterns, in one place:
 - **The patterns**: every chart and candlestick pattern, searchable and filterable, drawn
   in a textbook style: support in blue, resistance and necklines in amber, numbered swing
   points, a measured-move target, a breakout arrow, and illustrative volume underneath
-  (made up for Learn charts only; the swipe cards have no volume). Tap one to study it:
+  (made up for Learn charts only; the swipe cards have no volume). The drawings are
+  textured like real charts: uneven candles, the odd one against the move, wandering
+  flat stretches and varied wicks, with the pattern's turning points kept exact so the
+  detector still finds it. Tap one to study it:
   - the labelled example, with **Play it out** to watch a typical move to the target
   - **How to spot it**: a short checklist, in the order you'd check it, written to match
     what the detector tests (`lib/spotting.ts`)
@@ -124,8 +130,15 @@ Learn is all about the patterns, in one place:
     the reason and each checked
   - **Build one yourself** (candlesticks) or **Draw one yourself** (chart patterns)
   - **Find it in the wild**: practice on three full, realistic charts (the same kind the
-    swipe cards use) with the pattern in them. Averaging 80% masters it.
+    swipe cards use) with the pattern in them, alternating with real stocks' charts where
+    the scanner found it, when the real data is there. Averaging 80% masters it.
 - **Practice scenarios**: the same thing with any pattern and no hints.
+- **Real-world charts**: the same questions on real stocks' history (when the real data
+  is there): charts the scanner reads clearly one way, with a pattern to name, and their
+  real volume. The stock and dates show above the chart; **Hide ticker** hides them while
+  you read it (remembered in this browser), and they're always revealed once it plays out.
+  A run doesn't repeat a chart until it has used them all, and the famous moves come up
+  a little more often.
 - **Stop loss & take profit**: a lesson on placing exits (`lib/exits.ts`):
   - a labelled example: the stop just past the swing low, the target just short of
     resistance, drawn as risk and reward boxes, with **Play it out**
@@ -152,10 +165,14 @@ Each scenario is read the way a trader reads a chart, one question at a time
    out. The pattern is drawn on the chart here (its lines, levels, and numbered swing
    points), and its name is written on it once you answer. Lines come first so that
    finding the structure is a real question, and naming it is the next one.
-4. **The signal candle**: name the candles in the box, with a close-up
+4. **The signal candle**: name the candles in the box, with a close-up that keeps the
+   candles' real proportions (as many recent candles as that allows, not a few stretched flat)
 5. **Your call**: buy, sell, or skip. Then the next 30 days play out, and the chart is
    labelled in full. Your own lines are only shown on the lines question, next to the
    real ones, so the finished chart is just the answer.
+
+Until you make your call, the chart's price range fits only the candles you can see, so
+the empty space can't hint at which way price went; it widens for the replay.
 
 Labels on Learn charts find a free spot along their line, so they never sit on a numbered
 marker or another label.
@@ -174,7 +191,7 @@ the exits drill, and what you've built and drawn) is saved separately and isn't 
 4. ✅ Breakdown: replay, markup drawn on the chart, decision graded separately from the outcome, and the best stop and target in hindsight with an accuracy score for yours
 5. ✅ Pattern detection: 44 candlestick patterns and 58 chart patterns (including gaps, islands, diamonds, rounding and V bottoms, broadening formations, rectangles, trendlines and trendline breaks, climaxes, Fibonacci pullbacks, and changes of character), found from the raw candles alone
 6. ✅ Stats (equity curve, win rate, average R, decision accuracy, skip stats, accuracy by difficulty and by pattern), a Learn tab with every pattern, and saving to localStorage
-7. ✅ Real historical data: 270 real 90-day windows from 45 stocks and funds, mixed in with generated charts
+7. ✅ Real historical data: 285 real 90-day windows from 45 stocks and funds (15 around well-known moves), mixed in with generated charts and used for Learn's real-world charts
 8. ✅ Build a candlestick and draw a chart pattern yourself, on each pattern's page
 9. ✅ Chart markup on the trade setup screen (trendlines, levels, named candles and patterns), graded in the Breakdown
 10. ✅ Learn tab: a study page for every pattern in a labelled textbook chart style, and real-world scenario practice to master each one
@@ -256,7 +273,7 @@ the exits drill, and what you've built and drawn) is saved separately and isn't 
 | `src/pages/LearnPage.tsx`, `src/pages/learn/` | Learn tab: the pattern library, pattern pages, and scenarios |
 | `src/pages/learn/BuildEditor.tsx`, `src/pages/learn/DrawPad.tsx` | Build a candlestick, or draw a chart pattern, yourself |
 | `src/lib/spotting.ts`, `src/lib/patternStudy.ts` | Each pattern's spotting checklist, and its examples and look-alikes |
-| `src/lib/scenarios.ts`, `src/pages/learn/ScenarioPractice.tsx` | Real-world practice: realistic charts, the questions, and grading |
+| `src/lib/scenarios.ts`, `src/pages/learn/ScenarioPractice.tsx` | Real-world practice: realistic and real charts, the questions, and grading |
 | `src/lib/annotate.ts`, `src/components/AnnotatedChart.tsx` | The Learn chart style: labelled support, resistance, swing points, targets, volume |
 | `src/pages/learn/PatternDetail.tsx` | A pattern's study page |
 | `src/game/useLearn.ts` | Pattern mastery, scenario and exits-drill scores, saved in the browser |

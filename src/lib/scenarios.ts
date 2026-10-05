@@ -1,4 +1,4 @@
-import type { Bias, Candle, ChartCard, ChartPoint, Shape } from '../types'
+import type { Bias, Candle, ChartCard, ChartPoint, RealInfo, Shape } from '../types'
 import { makeRng, type Rng } from './random'
 import { averageTrueRange } from './trade'
 import { findCandlePatterns, findSignalPatterns } from './candlePatterns'
@@ -11,13 +11,15 @@ import { LIBRARY, entryByKey, findEntry } from './library'
 import { drawPattern, followThrough, lookAlikes } from './patternStudy'
 import { lineAt, type Line } from './userMarkup'
 import { illustrativeVolume } from './annotate'
+import { makeRealCard, type RealWindow } from './realCards'
 
 // Real-world practice for the Learn tab: a full, messy chart (the same kind
-// the swipe cards use) with a pattern in it. You read it the way a trader
-// would, one question at a time:
-//   1. the trend          2. the chart pattern     3. its key lines (you draw them)
+// the swipe cards use, or a real stock's) with a pattern in it. You read it
+// the way a trader would, one question at a time:
+//   1. the trend          2. its key lines (you draw them)   3. the chart pattern
 //   4. the signal candle  5. your call (buy, sell, or skip), then the replay.
-// Every answer comes from the chart's own answer key, checked by the detectors.
+// Generated charts answer from their own answer key, checked by the detectors;
+// real charts answer from the scanner.
 
 export type Trend = 'up' | 'down' | 'sideways'
 export type Call = 'buy' | 'sell' | 'skip'
@@ -37,6 +39,8 @@ export interface Scenario {
   atr: number
   story: string
   name: string // what the chart was, for the reveal
+  real: (RealInfo & { famous: boolean }) | null // a real stock's chart (null: generated)
+  realVolume: boolean // is the volume real (true) or made up for the picture (false)?
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +170,8 @@ function fromCard(card: ChartCard, focus: string | null, rng: Rng): Scenario | n
     atr,
     story: card.setup.story,
     name: card.setup.name,
+    real: null,
+    realVolume: false,
   }
 }
 
@@ -191,6 +197,8 @@ function fromDrawing(key: string, rng: Rng): Scenario | null {
     atr: averageTrueRange(d.candles, d.candles.length - 1),
     story: entry.meaning,
     name: entry.name,
+    real: null,
+    realVolume: false,
   }
 }
 
@@ -221,6 +229,77 @@ export function makeScenario(focus: string | null, seed: number): Scenario {
   }
   // Very unlikely: fall back to a mixed scenario rather than nothing.
   return makeScenario(null, seed + 1)
+}
+
+// ---------------------------------------------------------------------------
+// Real-world scenarios: real price history from well-known stocks. There's no
+// built-in answer key, so the scanner reads each chart (as for the real swipe
+// cards) and only charts where it found a chart pattern are used.
+// ---------------------------------------------------------------------------
+
+interface RealEntry {
+  window: RealWindow
+  card: ChartCard
+  patterns: string[] // chart patterns the scanner found
+  signal: string | null // the signal candle at the end, if any
+}
+
+const realPools = new WeakMap<RealWindow[], RealEntry[]>()
+
+function realPool(windows: RealWindow[]): RealEntry[] {
+  let pool = realPools.get(windows)
+  if (!pool) {
+    pool = windows.map((window) => {
+      const read = makeRealCard(window, 1)
+      // Ask about a pattern that agrees with the chart's overall read first.
+      const agree = (f: { bias: Bias }) => (f.bias === read.setup.bias ? 0 : 1)
+      const card = { ...read, setup: { ...read.setup, chartFindings: [...read.setup.chartFindings].sort((a, b) => agree(a) - agree(b)) } }
+      return {
+        window,
+        card,
+        patterns: card.setup.chartFindings.map((f) => findEntry(f.name)?.key).filter((k): k is string => !!k),
+        signal: findSignalPatterns(card.candles)[0]?.pattern.key ?? null,
+      }
+    })
+    realPools.set(windows, pool)
+  }
+  return pool
+}
+
+// The real charts that fit: ones the scanner reads clearly one way (a murky
+// real chart makes a confusing lesson), and for a pattern's practice, ones
+// where it found that pattern; otherwise any with a chart pattern to name.
+export function realChoices(windows: RealWindow[], focus: string | null): RealEntry[] {
+  const kind = focus ? entryByKey(focus)?.kind : null
+  return realPool(windows).filter(
+    (e) => e.card.setup.bias !== 'neutral' && (!focus ? e.patterns.length > 0 : kind === 'chart' ? e.patterns.includes(focus) : e.signal === focus),
+  )
+}
+
+// The nth real chart of a run: the run's seed shuffles the charts that fit,
+// so a run doesn't repeat one until it has used them all. Famous moves come
+// up a little more often.
+export function makeRealScenario(windows: RealWindow[], focus: string | null, runSeed: number, nth: number): Scenario | null {
+  const fits = realChoices(windows, focus)
+  if (!fits.length) return null
+  const rng = makeRng(runSeed)
+  const deck = fits.flatMap((e) => (e.window.famous ? [e, e] : [e]))
+  for (let k = deck.length - 1; k > 0; k--) {
+    const j = rng.int(0, k)
+    ;[deck[k], deck[j]] = [deck[j], deck[k]]
+  }
+  const unique = deck.filter((e, k) => deck.indexOf(e) === k)
+  const pick = unique[nth % unique.length]
+  const s = fromCard(pick.card, focus, makeRng(runSeed + nth * 7919))
+  if (!s) return null
+  const bars = pick.window.bars
+  const hasVolume = bars.every((b) => (b[4] ?? 0) > 0)
+  return {
+    ...s,
+    volume: hasVolume ? bars.map((b) => b[4]) : s.volume,
+    realVolume: hasVolume,
+    real: { ...pick.card.real!, famous: !!pick.window.famous },
+  }
 }
 
 // ---------------------------------------------------------------------------

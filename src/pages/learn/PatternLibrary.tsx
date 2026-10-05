@@ -20,6 +20,8 @@ interface Props {
   exits: LearnProgress['exits']
   onMixed: () => void // open the mixed scenarios
   onExits: () => void // open the stop loss and take profit lesson
+  realTickers: number // how many real stocks there are charts from (0: none in this copy)
+  onReal: () => void // open the real-world charts
 }
 
 type Kind = 'chart' | 'candle'
@@ -32,7 +34,7 @@ const BIAS_STYLE: Record<Bias, string> = {
 
 // Every pattern Tradr knows, as cards to filter and search. Tap one to study
 // it: examples, look-alikes that aren't it, and a drill to master it.
-export function PatternLibrary({ intro, history, focus, practice, scenarios, exits, onRunDone, onMixed, onExits }: Props) {
+export function PatternLibrary({ intro, history, focus, practice, scenarios, exits, onRunDone, onMixed, onExits, realTickers, onReal }: Props) {
   const focused = focus ? findEntry(focus) : undefined
   const [kind, setKind] = useState<Kind>(focused?.kind ?? 'chart')
   const [group, setGroup] = useState<string | null>(null) // null shows every group
@@ -95,17 +97,18 @@ export function PatternLibrary({ intro, history, focus, practice, scenarios, exi
   return (
     <div>
       {intro}
-      <div className="mb-6 grid gap-3 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.1fr)_minmax(0,1.1fr)]">
-        <div className="rounded-2xl border border-edge bg-card px-4 py-3.5">
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono text-[22px] leading-none">{mastered}</span>
-            <span className="text-[14px] text-soft">of {LIBRARY.length} patterns mastered</span>
-          </div>
-          <div className="mt-2 h-1.5 rounded-full bg-neutral-800" aria-hidden="true">
-            <div className="h-full rounded-full bg-up transition-[width] duration-500" style={{ width: `${(mastered / LIBRARY.length) * 100}%` }} />
-          </div>
-          <p className="mt-2 text-[13px] leading-relaxed text-muted">Open a pattern to learn it, then master it on real-world charts.</p>
+      {/* Your progress, in one slim line. */}
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-edge bg-card px-4 py-3">
+        <div className="flex items-baseline gap-2">
+          <span className="font-mono text-[20px] leading-none">{mastered}</span>
+          <span className="text-[14px] text-soft">of {LIBRARY.length} patterns mastered</span>
         </div>
+        <div className="h-1.5 min-w-24 flex-1 rounded-full bg-neutral-800" aria-hidden="true">
+          <div className="h-full rounded-full bg-up transition-[width] duration-500" style={{ width: `${(mastered / LIBRARY.length) * 100}%` }} />
+        </div>
+        <p className="text-[13px] text-muted">Open a pattern to learn it, then master it on real-world charts.</p>
+      </div>
+      <div className={`mb-6 grid gap-3 ${realTickers ? 'lg:grid-cols-3' : 'md:grid-cols-2'}`}>
         <button
           type="button"
           onClick={onMixed}
@@ -115,13 +118,31 @@ export function PatternLibrary({ intro, history, focus, practice, scenarios, exi
             <span className="block text-[11px] font-semibold tracking-[0.08em] text-up uppercase">Practice scenarios</span>
             <span className="mt-1 block text-[17px] font-semibold text-white">Read a chart like a trader</span>
             <span className="mt-0.5 block text-[13.5px] leading-relaxed text-soft">
-              Any pattern, no hints: call the trend, name the pattern, draw its lines, read the candles, make the call.
+              Any pattern, no hints: call the trend, draw its lines, name the pattern, read the candles, make the call.
             </span>
           </span>
           <span aria-hidden="true" className="text-[22px] text-up transition-transform group-hover:translate-x-0.5">
             →
           </span>
         </button>
+        {realTickers > 0 && (
+          <button
+            type="button"
+            onClick={onReal}
+            className="group flex items-center justify-between gap-4 rounded-2xl border border-edge bg-card px-5 py-4 text-left transition-colors hover:border-neutral-600"
+          >
+            <span>
+              <span className="block text-[11px] font-semibold tracking-[0.08em] text-muted uppercase">Real-world charts</span>
+              <span className="mt-1 block text-[17px] font-semibold text-white">Real stocks, real history</span>
+              <span className="mt-0.5 block text-[13.5px] leading-relaxed text-soft">
+                Apple, Nvidia, Tesla and {realTickers - 3} more. Read the chart, then see what actually happened.
+              </span>
+            </span>
+            <span aria-hidden="true" className="text-[22px] text-soft transition-transform group-hover:translate-x-0.5">
+              →
+            </span>
+          </button>
+        )}
         <button
           type="button"
           onClick={onExits}

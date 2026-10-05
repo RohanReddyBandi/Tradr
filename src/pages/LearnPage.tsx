@@ -6,6 +6,7 @@ import { PatternLibrary } from './learn/PatternLibrary'
 import { ScenarioPractice } from './learn/ScenarioPractice'
 import { ExitsLesson } from './learn/ExitsLesson'
 import { EXITS_FOCUS } from '../lib/exits'
+import { useRealWindows } from '../game/useRealWindows'
 
 interface Props {
   history: TradeRecord[]
@@ -18,7 +19,9 @@ interface Props {
 // real-world scenarios where you don't know which pattern is coming, and the
 // stop loss and take profit lesson.
 export function LearnPage({ history, focus, practice, learn }: Props) {
-  const [view, setView] = useState<'patterns' | 'mixed' | 'exits'>(focus === EXITS_FOCUS ? 'exits' : 'patterns')
+  const [view, setView] = useState<'patterns' | 'mixed' | 'real' | 'exits'>(focus === EXITS_FOCUS ? 'exits' : 'patterns')
+  const windows = useRealWindows()
+  const tickers = windows?.length ? new Set(windows.map((w) => w.ticker)).size : 0
   const { played, points } = learn.progress.mixed
   const show = (next: typeof view) => {
     setView(next)
@@ -30,6 +33,14 @@ export function LearnPage({ history, focus, practice, learn }: Props) {
       <div className="mx-auto max-w-md px-4 pt-6 pb-12 md:max-w-2xl lg:max-w-[1240px] lg:px-10 lg:py-8">
         {view === 'exits' ? (
           <ExitsLesson progress={learn.progress.exits} onRoundDone={learn.recordExit} onRunDone={learn.recordExitRun} onBack={() => show('patterns')} />
+        ) : view === 'real' ? (
+          <>
+            <div className="mb-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h1 className="text-[28px] leading-tight font-bold tracking-tight">Real-world charts</h1>
+              <span className="text-[14px] text-muted">Real stocks, real history: read the chart, then see what actually happened.</span>
+            </div>
+            <ScenarioPractice focus={null} runLength={null} source="real" onScenarioDone={learn.recordMixed} onExit={() => show('patterns')} exitLabel="Back to the patterns" />
+          </>
         ) : view === 'mixed' ? (
           <>
             <div className="mb-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -62,6 +73,8 @@ export function LearnPage({ history, focus, practice, learn }: Props) {
               exits={learn.progress.exits}
               onMixed={() => show('mixed')}
               onExits={() => show('exits')}
+              realTickers={tickers}
+              onReal={() => show('real')}
             />
           </>
         )}

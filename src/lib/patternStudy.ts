@@ -289,27 +289,31 @@ function candleNearMisses(key: string, rng: Rng): Specimen[] {
 // Near misses for a chart pattern: the shape before it's finished, or with swings too small to count.
 function chartNearMisses(key: string, rng: Rng): Specimen[] {
   const name = lower(key)
-  const out: Specimen[] = []
-  const drawn = drawChart(key, rng)
-  if (!drawn.ok) return out
-  const add = (candles: Candle[], note: string) => {
-    const seen = detect(candles, 'chart')
-    if (!seen.includes(key)) out.push({ candles, shapes: [], is: false, kind: 'nearMiss', shows: seen[0] ?? null, note })
+  // Each kind of near miss gets a few fresh drawings to find one the scanner
+  // doesn't read as the pattern (a random drawing can still pass by luck).
+  const tries = (make: (candles: Candle[]) => Candle[], note: string): Specimen[] => {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const drawn = drawChart(key, rng)
+      if (!drawn.ok) continue
+      const candles = make(drawn.candles)
+      const seen = detect(candles, 'chart')
+      if (!seen.includes(key)) return [{ candles, shapes: [], is: false, kind: 'nearMiss', shows: seen[0] ?? null, note }]
+    }
+    return []
   }
-  const cut = drawn.candles.slice(0, Math.round(drawn.candles.length * 0.7))
-  add(cut, `Not finished yet: the right-hand part, where ${article(name)} ${name} completes, hasn't formed.`)
-
-  const closes = drawn.candles.map((c) => c.close)
-  const mean = closes.reduce((a, b) => a + b, 0) / closes.length
-  const squash = (p: number) => mean + (p - mean) * 0.3
-  add(
-    drawn.candles.map((c) => {
-      const shift = squash(c.close) - c.close
+  const unfinished = (candles: Candle[]) => candles.slice(0, Math.round(candles.length * 0.7))
+  const squashed = (candles: Candle[]) => {
+    const closes = candles.map((c) => c.close)
+    const mean = closes.reduce((a, b) => a + b, 0) / closes.length
+    return candles.map((c) => {
+      const shift = mean + (c.close - mean) * 0.3 - c.close
       return { ...c, open: c.open + shift * 0.9, close: c.close + shift, high: c.high + shift, low: c.low + shift }
-    }),
-    "The same outline, but the swings are too small to count: that's everyday wiggle, not a pattern.",
-  )
-  return out
+    })
+  }
+  return [
+    ...tries(unfinished, `Not finished yet: the right-hand part, where ${article(name)} ${name} completes, hasn't formed.`),
+    ...tries(squashed, "The same outline, but the swings are too small to count: that's everyday wiggle, not a pattern."),
+  ]
 }
 
 // Look-alikes (drawn fresh, and checked not to read as the pattern) and near misses.

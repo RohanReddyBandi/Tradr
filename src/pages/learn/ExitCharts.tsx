@@ -373,11 +373,11 @@ export function SizeFromStop({ entry, stop, balance }: { entry: number; stop: nu
         </div>
         of a {formatMoney(balance)} balance
       </div>
-      <ol className="mt-4 grid gap-2 font-mono text-[14px] sm:grid-cols-3">
-        <Step n={1} label="You can lose" value={formatMoney(budget)} />
-        <Step n={2} label="Each share risks" value={`${formatMoney(perShare)}`} note={`${entry.toFixed(2)} − ${stop.toFixed(2)}`} />
-        <Step n={3} label="So buy" value={`${shares} shares`} note={`${formatMoney(position)}, ${Math.round((position / balance) * 100)}% of balance`} />
-      </ol>
+      <ul className="mt-4 grid gap-2 font-mono text-[14px] sm:grid-cols-3">
+        <Step label="You can lose" value={formatMoney(budget)} />
+        <Step label="Each share risks" value={`${formatMoney(perShare)}`} note={`${entry.toFixed(2)} − ${stop.toFixed(2)}`} />
+        <Step label="So buy" value={`${shares} shares`} note={`${formatMoney(position)}, ${Math.round((position / balance) * 100)}% of balance`} />
+      </ul>
       <p className="mt-3 text-[14px] leading-relaxed text-soft">
         If the stop is hit you lose about {formatMoney(shares * perShare)}, whatever the chart. A wider stop means fewer shares, not more risk.
       </p>
@@ -385,15 +385,10 @@ export function SizeFromStop({ entry, stop, balance }: { entry: number; stop: nu
   )
 }
 
-function Step({ n, label, value, note }: { n: number; label: string; value: string; note?: string }) {
+function Step({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
     <li className="rounded-xl border border-edge px-3 py-2.5">
-      <div className="flex items-center gap-2 font-sans text-[12px] text-muted">
-        <span className="grid size-5 place-items-center rounded-full text-[11px] font-bold text-white" style={{ background: LEARN.marker }}>
-          {n}
-        </span>
-        {label}
-      </div>
+      <div className="font-sans text-[12px] text-muted">{label}</div>
       <div className="mt-1 text-[17px] text-white">{value}</div>
       {note && <div className="mt-0.5 text-[11.5px] text-muted">{note}</div>}
     </li>

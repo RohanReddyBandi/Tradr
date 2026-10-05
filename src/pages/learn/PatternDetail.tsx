@@ -6,13 +6,14 @@ import { candleExample, chartExample } from '../../lib/examples'
 import { CHART_PATTERNS } from '../../lib/chartPatterns'
 import { SPOT, howToTrade } from '../../lib/spotting'
 import { examplesOf, nonExamples, patternSize, type Specimen } from '../../lib/patternStudy'
-import { SCENARIO_MASTERY, SCENARIOS_PER_RUN } from '../../lib/scenarios'
+import { realChoices, SCENARIO_MASTERY, SCENARIOS_PER_RUN } from '../../lib/scenarios'
+import { useRealWindows } from '../../game/useRealWindows'
 import { PRACTICE_CANDLES, DRAWABLE } from '../../lib/practice'
 import { HeroChart, Thumb } from './PatternChart'
 import { ScenarioPractice } from './ScenarioPractice'
 import { BuildEditor } from './BuildEditor'
 import { DrawPad } from './DrawPad'
-import { LEARN } from '../../theme'
+import { Bullets } from './Bullets'
 
 const BIAS_STYLE: Record<Bias, string> = {
   bullish: 'border-up/30 text-up',
@@ -55,6 +56,8 @@ export function PatternDetail({ entry, position, prev, next, mastery, inTrades, 
   const best = mastery?.best ?? 0
   const mastered = best >= SCENARIO_MASTERY
   const canMake = entry.kind === 'candle' ? BUILDABLE.has(entry.key) : DRAWABLE_KEYS.has(entry.key)
+  const windows = useRealWindows()
+  const realCount = useMemo(() => (windows?.length ? realChoices(windows, entry.key).length : 0), [windows, entry.key])
 
   const scrollTop = () => requestAnimationFrame(() => document.getElementById('learn-scroll')?.scrollTo({ top: 0 }))
 
@@ -74,6 +77,7 @@ export function PatternDetail({ entry, position, prev, next, mastery, inTrades, 
             scrollTop()
           }}
           exitLabel={`Back to the ${name}`}
+          source="both"
         />
       </motion.div>
     )
@@ -123,16 +127,7 @@ export function PatternDetail({ entry, position, prev, next, mastery, inTrades, 
           {example && <HeroChart entry={entry} example={example} height={entry.kind === 'chart' ? 400 : 330} />}
 
           <Section title="How to spot it">
-            <ol className="flex flex-col gap-3">
-              {(SPOT[entry.key] ?? []).map((point, k) => (
-                <li key={k} className="flex gap-3 text-[16px] leading-relaxed text-neutral-100">
-                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-[12px] font-bold text-white" style={{ background: LEARN.marker }}>
-                    {k + 1}
-                  </span>
-                  {point}
-                </li>
-              ))}
-            </ol>
+            <Bullets points={SPOT[entry.key] ?? []} />
           </Section>
 
           <div className="mt-7 grid gap-4 sm:grid-cols-2">
@@ -201,7 +196,8 @@ export function PatternDetail({ entry, position, prev, next, mastery, inTrades, 
               <div className="text-[11px] tracking-[0.08em] text-muted uppercase">Practice</div>
               <h3 className="mt-1.5 text-[19px] leading-snug font-semibold">Find it in the wild</h3>
               <p className="mt-1.5 text-[14.5px] leading-relaxed text-soft">
-                {SCENARIOS_PER_RUN} full, realistic charts with {article(name)} {name} in them. Call the trend, name the pattern, draw its lines, read the
+                {SCENARIOS_PER_RUN} full charts with {article(name)} {name} in them
+                {realCount > 0 ? `, including real stocks where it showed up (${realCount} on file)` : ''}. Find its lines, name the pattern, read the
                 signal candle, and make the call. Then watch what happened.
               </p>
               <div className="mt-3 h-1.5 rounded-full bg-neutral-800" aria-hidden="true">

@@ -3,9 +3,9 @@ import { motion } from 'motion/react'
 import { lessonChart, EXIT_ROUNDS } from '../../lib/exits'
 import type { LearnProgress } from '../../game/useLearn'
 import { STARTING_BALANCE } from '../../game/useGame'
-import { LEARN } from '../../theme'
 import { ExitsHero, RatioPlayground, SizeFromStop, TrapCard } from './ExitCharts'
 import { ExitDrill } from './ExitDrill'
+import { Bullets } from './Bullets'
 
 interface Props {
   progress: LearnProgress['exits']
@@ -80,11 +80,11 @@ export function ExitsLesson({ progress, onRoundDone, onRunDone, onBack }: Props)
           </p>
 
           <Section title="Where the stop loss goes">
-            <Points points={STOP_POINTS} />
+            <Bullets points={STOP_POINTS} />
           </Section>
 
           <Section title="Where the take profit goes">
-            <Points points={TARGET_POINTS} />
+            <Bullets points={TARGET_POINTS} />
           </Section>
 
           <div className="mt-7 grid gap-4 sm:grid-cols-2">
@@ -157,21 +157,6 @@ export function ExitsLesson({ progress, onRoundDone, onRunDone, onBack }: Props)
         </aside>
       </div>
     </motion.article>
-  )
-}
-
-function Points({ points }: { points: string[] }) {
-  return (
-    <ol className="flex flex-col gap-3">
-      {points.map((point, k) => (
-        <li key={k} className="flex gap-3 text-[16px] leading-relaxed text-neutral-100">
-          <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-[12px] font-bold text-white" style={{ background: LEARN.marker }}>
-            {k + 1}
-          </span>
-          {point}
-        </li>
-      ))}
-    </ol>
   )
 }
 

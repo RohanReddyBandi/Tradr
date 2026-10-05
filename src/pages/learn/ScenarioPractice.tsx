@@ -1,13 +1,17 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Candle, Shape } from '../../types'
 import { entryByKey } from '../../lib/library'
 import { SPOT } from '../../lib/spotting'
 import { annotate, type Note } from '../../lib/annotate'
-import { gradeLines, makeScenario, rightCall, scoreScenario, SCENARIO_MASTERY, type Answers, type Call, type Trend } from '../../lib/scenarios'
+import { gradeLines, makeRealScenario, makeScenario, rightCall, scoreScenario, SCENARIO_MASTERY, type Answers, type Call, type Scenario, type Trend } from '../../lib/scenarios'
+import { useRealWindows } from '../../game/useRealWindows'
+import { dateRange } from '../../format'
 import type { Drawing, Line } from '../../lib/userMarkup'
 import { AnnotatedChart } from '../../components/AnnotatedChart'
 import { DrawingLayer, DrawingShapes } from '../../components/DrawingLayer'
+import { useWidth } from '../../components/chartScale'
+import { averageTrueRange } from '../../lib/trade'
 import { LEARN } from '../../theme'
 
 type Step = 'trend' | 'pattern' | 'lines' | 'candle' | 'call'
@@ -27,6 +31,19 @@ interface Props {
   onRunDone?: (average: number) => void
   onExit: () => void
   exitLabel: string
+  // Where the charts come from: generated ones, real stocks' history, or a mix
+  // (every other chart real, when there are real charts with the pattern in).
+  source?: 'generated' | 'real' | 'both'
+}
+
+const SHOW_TICKER_KEY = 'tradr:showTicker'
+
+function savedShowTicker() {
+  try {
+    return localStorage.getItem(SHOW_TICKER_KEY) !== 'no'
+  } catch {
+    return true
+  }
 }
 
 const newSeed = () => Math.floor(Math.random() * 2 ** 31)
@@ -34,12 +51,28 @@ const article = (word: string) => (/^[aeiou]/i.test(word) ? 'an' : 'a')
 const nameOf = (key: string) => entryByKey(key)?.name ?? key
 
 // A real-world scenario: a full chart, read one question at a time, the way
-// a trader would. Trend, pattern, its key lines (drawn), the signal candle,
-// and the call, then the next 30 days play out with everything labelled.
-export function ScenarioPractice({ focus, runLength, onScenarioDone, onRunDone, onExit, exitLabel }: Props) {
+// a trader would. Trend, key lines (drawn), pattern, the signal candle, and
+// the call, then the next 30 days play out with everything labelled.
+export function ScenarioPractice({ focus, runLength, onScenarioDone, onRunDone, onExit, exitLabel, source = 'generated' }: Props) {
   const [runSeed, setRunSeed] = useState(newSeed)
   const [index, setIndex] = useState(0)
-  const s = useMemo(() => makeScenario(focus, runSeed + index * 7919), [focus, runSeed, index])
+  const windows = useRealWindows()
+  const s: Scenario = useMemo(() => {
+    const wantReal = source === 'real' || (source === 'both' && index % 2 === 0)
+    const nth = source === 'real' ? index : index / 2
+    const real = wantReal && windows?.length ? makeRealScenario(windows, focus, runSeed, nth) : null
+    return real ?? makeScenario(focus, runSeed + index * 7919)
+  }, [focus, runSeed, index, source, windows])
+  const [showTicker, setShowTicker] = useState(savedShowTicker)
+  function toggleTicker() {
+    const next = !showTicker
+    setShowTicker(next)
+    try {
+      localStorage.setItem(SHOW_TICKER_KEY, next ? 'yes' : 'no')
+    } catch {
+      // Not saved: it just resets next time.
+    }
+  }
   const steps = useMemo<Step[]>(
     // Lines before the pattern: find the structure first, then name it (and
     // the name doesn't give the lines away).
@@ -101,15 +134,20 @@ export function ScenarioPractice({ focus, runLength, onScenarioDone, onRunDone, 
     setRunOver(false)
   }
 
-  // The chart: fixed range and room for the replay from the start, so nothing jumps.
-  // (It includes the target, worked out up front, so the reveal can't push it into the title.)
+  // The chart's price range. While you're answering it fits just the candles
+  // you can see: leaving room for the replay would give away which way price
+  // went. Once you've made your call it widens to fit the replay and the
+  // target (worked out up front, so the reveal can't push it into the title).
   const range = useMemo(() => {
     const { target } = annotate(s.shapes, s.candles, s.bias, s.candles.length - 1, true)
-    const prices = [...[...s.candles, ...s.future].flatMap((c) => [c.low, c.high]), ...(target ? [target] : [])]
-    const lo = Math.min(...prices)
-    const hi = Math.max(...prices)
-    return { min: lo - (hi - lo) * 0.08, max: hi + (hi - lo) * 0.1 }
-  }, [s])
+    const fit = (prices: number[], pad: number) => {
+      const lo = Math.min(...prices)
+      const hi = Math.max(...prices)
+      return { min: lo - (hi - lo) * pad, max: hi + (hi - lo) * pad * 1.25 }
+    }
+    const seen = s.candles.flatMap((c) => [c.low, c.high])
+    return allDone ? fit([...seen, ...s.future.flatMap((c) => [c.low, c.high]), ...(target ? [target] : [])], 0.08) : fit(seen, 0.06)
+  }, [s, allDone])
   // What's drawn so far: the pattern itself (lines, levels, swing points) once
   // you've checked your lines or named it, its name once you've named it, the
   // signal candles once you've named those, and the target with the call.
@@ -123,6 +161,10 @@ export function ScenarioPractice({ focus, runLength, onScenarioDone, onRunDone, 
   }, [s, answers, last, allDone])
   const lines = drawings.filter((d): d is Line => d.kind !== 'candle')
   const graded = done('lines') ? gradeLines(s, answers.lines ?? []) : null
+
+  if (source === 'real' && windows === null) {
+    return <p className="rounded-3xl border border-edge bg-card p-6 text-[15px] text-muted">Loading the real charts…</p>
+  }
 
   if (runOver) {
     const average = scores.reduce((a, b) => a + b, 0) / scores.length
@@ -159,6 +201,7 @@ export function ScenarioPractice({ focus, runLength, onScenarioDone, onRunDone, 
             {exitLabel}
           </button>
         </div>
+        {s.real && <TickerChip real={s.real} show={showTicker || allDone} revealed={allDone} onToggle={allDone ? null : toggleTicker} showing={showTicker} />}
         <div className="rounded-3xl border border-edge bg-[#07090c] px-1.5 py-2">
           <AnnotatedChart
             key={`${runSeed}-${index}`}
@@ -170,7 +213,7 @@ export function ScenarioPractice({ focus, runLength, onScenarioDone, onRunDone, 
             height={420}
             title={allDone ? s.name : ''}
             shadeFrom={allDone ? last + 1 : undefined}
-            label="A chart to read: trend, pattern, key lines, signal candle, and your call"
+            label={`${s.real ? `A real stock's chart${showTicker || allDone ? ` (${s.real.ticker})` : ''}` : 'A chart'} to read: trend, pattern, key lines, signal candle, and your call`}
             overlay={
               step === 'lines' && !done('lines')
                 ? (project) => (
@@ -487,40 +530,107 @@ function LinesStep({ count, drawn, tool, onTool, onUndo, onCheck, result }: Line
 }
 
 // How the next 30 days went, as they play out.
-function Outcome({ s, shown }: { s: ReturnType<typeof makeScenario>; shown: number }) {
+interface ChipProps {
+  real: NonNullable<Scenario['real']>
+  show: boolean // show the ticker (it always shows once the chart has played out)
+  revealed: boolean
+  showing: boolean // your setting
+  onToggle: (() => void) | null
+}
+
+// Which real stock this is, and when: hidden if you'd rather not know while
+// you read the chart, and always shown once it has played out.
+function TickerChip({ real, show, revealed, showing, onToggle }: ChipProps) {
+  return (
+    <div className="mb-2.5 flex flex-wrap items-center gap-2">
+      <span className="flex h-8 items-center gap-2 rounded-full border border-edge bg-card px-3 text-[13px] text-soft">
+        <span className="size-1.5 rounded-full bg-up" aria-hidden="true" />
+        {show ? (
+          <>
+            <span className="font-mono font-semibold text-white">{real.ticker}</span>
+            <span>{real.name}</span>
+            <span className="text-muted">· {revealed ? dateRange(real.from, real.to) : dateRange(real.from, real.decision)}</span>
+          </>
+        ) : (
+          <span>Real stock · ticker hidden</span>
+        )}
+      </span>
+      {onToggle && (
+        <button type="button" onClick={onToggle} aria-pressed={showing} className="h-8 rounded-full px-2.5 text-[13px] text-muted hover:bg-neutral-900 hover:text-white">
+          {showing ? 'Hide ticker' : 'Show ticker'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function Outcome({ s, shown }: { s: Scenario; shown: number }) {
   if (shown < s.future.length) return <span className="text-muted">Playing out the next {s.future.length} days…</span>
   const from = s.candles[s.candles.length - 1].close
   const to = s.future[s.future.length - 1].close
   const pct = ((to - from) / from) * 100
   const way = pct > 0.5 ? 'rose' : pct < -0.5 ? 'fell' : 'went nowhere'
   const agreed = (s.bias === 'bullish' && pct > 0) || (s.bias === 'bearish' && pct < 0)
+  const firstDay = ((s.future[0].close - from) / from) * 100
   return (
     <>
-      Over the next {s.future.length} days price {way}
+      Over the next {s.future.length} days {s.real ? s.real.ticker : 'price'} {way}
       {way !== 'went nowhere' && ` ${Math.abs(pct).toFixed(1)}%`}.
-      {s.bias !== 'neutral' && !agreed && ' This one failed: good setups still lose now and then.'}
+      {s.real && Math.abs(firstDay) >= 5 && ` It ${firstDay > 0 ? 'jumped' : 'dropped'} ${Math.abs(firstDay).toFixed(0)}% on the very first day: a move that size usually comes from news, which no chart can see coming.`}
+      {s.bias !== 'neutral' && !agreed && (s.real ? ' Real charts fail more often than textbook ones.' : ' This one failed: good setups still lose now and then.')}
     </>
   )
 }
 
-// The last dozen candles up close, with the ones to name boxed: on the full
-// chart they're too small to read.
+const CLOSE_UP_HEIGHT = 180
+
+// The last few weeks, magnified, with the candles to name boxed. The candles
+// keep the shape they have on the main chart (a normal day's range about
+// 1.6 times as tall as a candle's slot is wide), so it shows as many recent
+// candles as that allows instead of stretching a handful into wide, flat boxes.
 function CloseUp({ candles, from, to }: { candles: Candle[]; from: number; to: number }) {
-  const start = Math.max(0, from - 9)
-  const shown = candles.slice(start, to + 1)
+  const box = useRef<HTMLDivElement>(null)
+  const width = useWidth(box)
+  const view = useMemo(() => closeUpView(candles, to, Math.max(0, width - 12), CLOSE_UP_HEIGHT - 34), [candles, to, width])
+  const shown = candles.slice(view.start, to + 1)
+  const slice = candles.slice(from, to + 1)
+  const pad = (Math.max(...shown.map((c) => c.high)) - Math.min(...shown.map((c) => c.low))) * 0.04
   return (
-    <div className="mb-3 rounded-2xl border border-edge bg-[#07090c] px-1 py-1.5">
-      <AnnotatedChart candles={shown} height={150} compact label="Close-up of the last candles">
+    <div ref={box} className="mb-3 rounded-2xl border border-edge bg-[#07090c] px-1 py-1.5">
+      <AnnotatedChart
+        candles={shown}
+        slots={shown.length + 0.6}
+        range={{ min: Math.min(...shown.map((c) => c.low)) - pad, max: Math.max(...shown.map((c) => c.high)) + pad }}
+        height={CLOSE_UP_HEIGHT}
+        bodyWidth={view.body}
+        compact
+        label="Close-up of the last candles"
+      >
         {(scale) => {
-          const slice = candles.slice(from, to + 1)
           const top = scale.y(Math.max(...slice.map((c) => c.high))) - 6
           const bottom = scale.y(Math.min(...slice.map((c) => c.low))) + 6
-          const left = scale.x(from - start) - scale.slot / 2 - 3
+          const left = scale.x(from - view.start) - scale.slot / 2 - 3
           return (
-            <rect x={left} y={top} width={scale.x(to - start) + scale.slot / 2 + 3 - left} height={bottom - top} rx={5} fill="none" stroke="#f2f2f2" strokeWidth={1.5} strokeDasharray="4 3" />
+            <rect x={left} y={top} width={scale.x(to - view.start) + scale.slot / 2 + 3 - left} height={bottom - top} rx={5} fill="none" stroke="#f2f2f2" strokeWidth={1.5} strokeDasharray="4 3" />
           )
         }}
       </AnnotatedChart>
     </div>
   )
+}
+
+// How many candles the close-up shows, and how wide their bodies are.
+function closeUpView(candles: Candle[], to: number, plotWidth: number, plotHeight: number) {
+  const atr = averageTrueRange(candles.slice(0, to + 1), 14)
+  let count = 18
+  let ideal = plotWidth / count // the slot width that keeps candles their real shape
+  for (let pass = 0; pass < 4 && plotWidth > 0; pass++) {
+    const shown = candles.slice(Math.max(0, to + 1 - count), to + 1)
+    const range = Math.max(...shown.map((c) => c.high)) - Math.min(...shown.map((c) => c.low))
+    ideal = ((plotHeight / range) * atr) / 1.6
+    count = Math.min(40, Math.max(14, Math.round(plotWidth / ideal)))
+  }
+  const start = Math.max(0, to + 1 - count)
+  const slot = plotWidth / (to + 1 - start + 0.6)
+  return { start, body: Math.max(2, 0.6 * Math.min(slot, ideal)) }
 }

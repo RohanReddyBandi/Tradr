@@ -114,7 +114,8 @@ function Round({ chart, round, scores, onChecked, onNext, onExit }: RoundProps) 
 
   // While placing, the chart fits the far-out starting levels. Once checked it
   // zooms in on the levels that matter (yours and the textbook ones) and the replay.
-  const placingRange = useMemo(() => exitRange([...candles, ...future], [opening.stop, opening.target]), [candles, future, opening])
+  // (Only the candles you can see, so the room on the chart doesn't hint at where price went.)
+  const placingRange = useMemo(() => exitRange(candles, [opening.stop, opening.target]), [candles, opening])
   // The review shows just the last few weeks and the replay, so the exits have room.
   const offset = grade ? Math.max(0, candles.length - REVIEW_SPAN) : 0
   const reviewRange = useMemo(

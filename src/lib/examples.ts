@@ -1,6 +1,5 @@
 import type { Candle, Shape } from '../types'
 import { makeRng } from './random'
-import { pathThrough } from './generator'
 import { CANDLE_RECIPES, SIGNAL_RECIPES, type LeadIn } from './signalCandles'
 import { findChartPatterns } from './chartPatterns'
 
@@ -136,15 +135,20 @@ export const MIRRORS: Record<string, string> = {
   bearishFibPullback: 'bullishFibPullback',
 }
 
-// Candles through the points, with a little randomness so they look real.
+// Candles through the points, textured to look like a real chart: each leg
+// is split into uneven moves (some big candles, some small, the odd one
+// against the trend), flat stretches wander a little, opens don't always
+// match the last close, and wicks vary, with the occasional long one. The
+// points themselves stay exact, and no candle closes past a leg's two ends,
+// so the shape the scanner looks for is still there.
 export function candlesThrough(points: Points, seed: number, gaps: [number, number][] = []): Candle[] {
   const rng = makeRng(seed)
-  const closes = pathThrough(points.map(([at, price]) => ({ at, price })), rng, 0.2)
+  const closes = texturedPath(points, rng)
   const candles = closes.map((close, i) => {
-    const open = i === 0 ? close : closes[i - 1]
-    const upper = 0.15 + rng.next() * 0.3
-    const lower = 0.15 + rng.next() * 0.3
-    return { time: i, open, close, high: Math.max(open, close) + upper, low: Math.min(open, close) - lower }
+    const open = i === 0 ? close - (closes[1] - close) * 0.5 : closes[i - 1] + rng.noise() * 0.12 * R
+    const body = Math.abs(close - open)
+    const wick = () => R * (0.06 + 0.3 * rng.next() * rng.next() + (rng.chance(0.08) ? 0.45 * rng.next() : 0)) + body * 0.2 * rng.next()
+    return { time: i, open, close, high: Math.max(open, close) + wick(), low: Math.min(open, close) - wick() }
   })
   // Shifting everything after a point opens a gap there.
   for (const [at, jump] of gaps) {
@@ -156,6 +160,35 @@ export function candlesThrough(points: Points, seed: number, gaps: [number, numb
     }
   }
   return candles
+}
+
+// Closing prices through the points, one leg at a time.
+function texturedPath(points: Points, rng: ReturnType<typeof makeRng>): number[] {
+  const closes: number[] = [points[0][1]]
+  for (let p = 0; p < points.length - 1; p++) {
+    const [from, a] = points[p]
+    const [to, b] = points[p + 1]
+    const n = to - from
+    // Uneven steps that still add up to the whole move: mostly with the leg,
+    // some bigger, and roughly one in six against it.
+    let weights = Array.from({ length: n }, () => (1 + 2 * rng.noise()) * (rng.chance(0.12) ? 2.2 : 1))
+    const total = weights.reduce((x, y) => x + y, 0)
+    if (total < n * 0.4) weights = weights.map(() => 1)
+    const sum = weights.reduce((x, y) => x + y, 0)
+    // Flat legs barely move, so they get a gentle wander instead (pinned at both ends).
+    const flat = Math.max(0, 1 - Math.abs(b - a) / (n * 0.9 * R))
+    const walk = [0]
+    for (let k = 1; k <= n; k++) walk.push(walk[k - 1] + rng.noise() * R * 0.7 * flat)
+    const lo = Math.min(a, b) - flat * 0.6 * R
+    const hi = Math.max(a, b) + flat * 0.6 * R
+    let price = a
+    for (let k = 1; k <= n; k++) {
+      price += ((b - a) * weights[k - 1]) / sum
+      const wander = walk[k] - (walk[n] * k) / n
+      closes[from + k] = k === n ? b : Math.min(hi, Math.max(lo, price + wander))
+    }
+  }
+  return closes
 }
 
 export function chartExample(key: string): PatternExample | null {

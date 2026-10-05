@@ -11,7 +11,8 @@ export interface RealWindow {
   from: string
   decision: string
   to: string
-  bars: number[][] // [open, high, low, close] for 90 days
+  famous?: boolean // a well-known move starts the replay
+  bars: number[][] // [open, high, low, close, volume] for 90 days (older files have no volume)
 }
 
 // The real charts are about 700 KB, so they're loaded as a separate file the

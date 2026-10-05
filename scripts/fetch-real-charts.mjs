@@ -24,6 +24,16 @@ const TICKERS = [
 ]
 
 const WINDOW = 90 // 60 candles to decide on + 30 to replay
+
+// Well-known moves, by the last trading day before them: each becomes a
+// window whose replay starts with the move. The dates are all this list
+// claims; nothing about why is shown in the app.
+const FAMOUS = [
+  ['AAPL', '2019-01-02'], ['META', '2022-02-02'], ['NFLX', '2022-04-19'], ['NVDA', '2023-05-24'],
+  ['SPY', '2020-02-21'], ['TSLA', '2020-08-11'], ['BA', '2019-03-08'], ['DIS', '2019-04-11'],
+  ['INTC', '2024-08-01'], ['PFE', '2020-11-06'], ['AMZN', '2022-04-28'], ['GOOGL', '2023-02-07'],
+  ['QQQ', '2022-11-09'], ['CRM', '2024-05-29'], ['NKE', '2024-06-27'],
+]
 const PER_TICKER = 6 // windows saved per ticker
 const YEARS = 15
 const PAUSE_MS = 1200 // wait between requests, to be polite to the server
@@ -59,8 +69,9 @@ async function fetchDaily(ticker) {
   result.timestamp.forEach((time, i) => {
     const [open, high, low, close] = [quote.open[i], quote.high[i], quote.low[i], quote.close[i]]
     if (![open, high, low, close].every((v) => typeof v === 'number' && v > 0)) return
+    const volume = typeof quote.volume?.[i] === 'number' ? quote.volume[i] : 0
     // Occasionally the high/low don't quite contain the open/close; fix that.
-    rows.push({ time, open, close, high: Math.max(high, open, close), low: Math.min(low, open, close) })
+    rows.push({ time, open, close, high: Math.max(high, open, close), low: Math.min(low, open, close), volume })
   })
   return rows
 }
@@ -81,9 +92,8 @@ function usable(rows) {
   return flatDays <= 2
 }
 
-function pickWindows(rows, rng) {
+function pickWindows(rows, rng, taken = []) {
   const windows = []
-  const taken = []
   for (let attempt = 0; attempt < 200 && windows.length < PER_TICKER; attempt++) {
     const start = Math.floor(rng() * (rows.length - WINDOW))
     if (taken.some((s) => Math.abs(s - start) < WINDOW)) continue // no overlapping windows
@@ -95,24 +105,41 @@ function pickWindows(rows, rng) {
   return windows
 }
 
+// The famous window for a ticker: 60 days up to the decision day, then 30 more.
+// Big one-day moves are the point here, so only the price floor is checked.
+function famousWindows(ticker, rows) {
+  return FAMOUS.filter(([t]) => t === ticker).flatMap(([, decision]) => {
+    let end = -1
+    rows.forEach((r, i) => {
+      if (isoDate(r.time) <= decision) end = i
+    })
+    const start = end - 59
+    const slice = rows.slice(start, start + WINDOW)
+    return start >= 0 && slice.length === WINDOW && slice.every((r) => r.low >= 5) ? [{ start, slice }] : []
+  })
+}
+
+const toWindow = (ticker, name, w, famous) => ({
+  ticker,
+  name,
+  from: isoDate(w[0].time), // first candle you see
+  decision: isoDate(w[59].time), // the day you decide
+  to: isoDate(w[w.length - 1].time), // last replay candle
+  ...(famous ? { famous: true } : {}),
+  bars: w.map((r) => [round(r.open), round(r.high), round(r.low), round(r.close), Math.round(r.volume)]), // volume in shares
+})
+
 async function main() {
   const rng = makeRng(20240101)
   const out = []
   for (const [ticker, name] of TICKERS) {
     try {
       const rows = await fetchDaily(ticker)
-      const windows = pickWindows(rows, rng)
-      for (const w of windows) {
-        out.push({
-          ticker,
-          name,
-          from: isoDate(w[0].time), // first candle you see
-          decision: isoDate(w[59].time), // the day you decide
-          to: isoDate(w[w.length - 1].time), // last replay candle
-          bars: w.map((r) => [round(r.open), round(r.high), round(r.low), round(r.close)]),
-        })
-      }
-      console.log(`${ticker.padEnd(6)} ${rows.length} days, ${windows.length} windows`)
+      const famous = famousWindows(ticker, rows)
+      const windows = pickWindows(rows, rng, famous.map((f) => f.start))
+      for (const f of famous) out.push(toWindow(ticker, name, f.slice, true))
+      for (const w of windows) out.push(toWindow(ticker, name, w, false))
+      console.log(`${ticker.padEnd(6)} ${rows.length} days, ${windows.length} windows${famous.length ? ` + ${famous.length} famous` : ''}`)
     } catch (error) {
       console.warn(`${ticker.padEnd(6)} skipped: ${error.message}`)
     }

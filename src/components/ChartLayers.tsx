@@ -5,8 +5,8 @@ import type { Scale } from './chartScale'
 // Plain SVG chart pieces, shared by the Learn tab's small charts and the
 // Practice drills. Positions come from a Scale (see chartScale.ts).
 
-export function CandleLayer({ candles, scale, dim }: { candles: Candle[]; scale: Scale; dim?: (index: number) => boolean }) {
-  const bodyWidth = Math.max(1.5, scale.slot * 0.6)
+export function CandleLayer({ candles, scale, dim, body }: { candles: Candle[]; scale: Scale; dim?: (index: number) => boolean; body?: number }) {
+  const bodyWidth = body ?? Math.max(1.5, scale.slot * 0.6)
   return (
     <g>
       {candles.map((c, i) => {

@@ -24,3 +24,13 @@ export function formatSignedPercent(percent: number) {
   const sign = rounded > 0 ? '+' : rounded < 0 ? '−' : ''
   return `${sign}${Math.abs(rounded).toFixed(1)}%`
 }
+
+// "Mar 1 – Jun 30, 2023", or "Dec 2, 2022 – Feb 1, 2023" across a new year.
+export function dateRange(from: string, to: string) {
+  const f = new Date(`${from}T00:00:00Z`)
+  const t = new Date(`${to}T00:00:00Z`)
+  const opts = { month: 'short', day: 'numeric', timeZone: 'UTC' } as const
+  const sameYear = f.getUTCFullYear() === t.getUTCFullYear()
+  const start = f.toLocaleDateString('en-US', sameYear ? opts : { ...opts, year: 'numeric' })
+  return `${start} – ${t.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`
+}
