@@ -95,8 +95,10 @@ async function fetchDaily(ticker, key) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
     const json = await response.json()
     for (const [date, open, high, low, close, volume] of json.datatable?.data ?? []) {
-      if (![open, high, low, close].every((v) => typeof v === 'number' && v > 0)) continue
-      rows.push({ date, open, close, high: Math.max(high, open, close), low: Math.min(low, open, close), volume: volume ?? 0 })
+      // Keep only well-formed rows: a YYYY-MM-DD date and real, positive prices.
+      if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue
+      if (![open, high, low, close].every((v) => typeof v === 'number' && Number.isFinite(v) && v > 0)) continue
+      rows.push({ date, open, close, high: Math.max(high, open, close), low: Math.min(low, open, close), volume: Number.isFinite(volume) && volume > 0 ? volume : 0 })
     }
     cursor = json.meta?.next_cursor_id ?? null
   } while (cursor)

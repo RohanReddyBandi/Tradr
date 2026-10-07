@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { isTextList } from './saved'
+import { entryByKey } from '../lib/library'
 
 // The patterns you've built and drawn yourself on their Learn pages, saved in
 // the browser separately from the trading game (resetting your balance
@@ -19,7 +20,10 @@ function load(): PracticeProgress {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     const saved = raw ? (JSON.parse(raw) as Partial<PracticeProgress> | null) : null
-    return saved?.version === 1 && isTextList(saved.built) && isTextList(saved.drawn) ? { version: 1, built: saved.built, drawn: saved.drawn } : EMPTY
+    if (saved?.version !== 1 || !isTextList(saved.built) || !isTextList(saved.drawn)) return EMPTY
+    // Only real pattern keys, once each.
+    const known = (keys: string[]) => [...new Set(keys)].filter((k) => entryByKey(k))
+    return { version: 1, built: known(saved.built), drawn: known(saved.drawn) }
   } catch {
     return EMPTY
   }

@@ -98,7 +98,8 @@ export function planProblem(plan: TradePlan, balance: number): string | null {
   const long = plan.direction === 'long'
   if (!(plan.size > 0)) return 'Enter a position size above $0.'
   if (plan.size > balance) return `You only have ${balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} to trade with.`
-  if (!(plan.stop > 0) || !(plan.target > 0)) return 'Enter a price for the stop loss and take profit.'
+  // Number("1e999") is Infinity, which is "above 0" but not a price.
+  if (!(plan.stop > 0) || !(plan.target > 0) || !Number.isFinite(plan.stop) || !Number.isFinite(plan.target)) return 'Enter a price for the stop loss and take profit.'
   if (long && plan.stop >= plan.entry) return 'For a long, the stop loss goes below the entry.'
   if (!long && plan.stop <= plan.entry) return 'For a short, the stop loss goes above the entry.'
   if (long && plan.target <= plan.entry) return 'For a long, the take profit goes above the entry.'

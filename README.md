@@ -39,8 +39,9 @@ site has real charts on the swipe cards and in Learn's **Real-world charts** too
 ## Security
 
 - The site sends security headers (set in `vercel.json`): a content security policy
-  that only allows the site's own scripts, styles, fonts and connections, no framing by
-  other sites, no content sniffing, a strict referrer policy, and no camera,
+  that only allows the site's own scripts, styles, fonts and connections (no inline
+  scripts or styles at all), no framing by other sites, no content sniffing, a strict
+  referrer policy, its files only usable by the site itself, and no camera,
   microphone, location or payment access. `npm run preview` sends the same ones (minus
   the HTTPS-only parts), so a build can be checked locally.
 - There's no server and no accounts: everything you do is saved in your own browser.
