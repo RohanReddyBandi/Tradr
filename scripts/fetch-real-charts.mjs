@@ -6,7 +6,7 @@
 // as end-of-day prices for about 3,000 US companies, "curated by the Quandl
 // community and released into the public domain", so the file can live in
 // the repo and ship with the site. It stopped updating in March 2018, so every
-// chart is from 1996 to early 2018.
+// chart is from 2000 to early 2018 (see DECIMAL_PRICES below).
 //   https://data.nasdaq.com/databases/WIKIP
 //
 // Downloading it needs a free Nasdaq Data Link API key. Put yours in a file
@@ -44,6 +44,10 @@ const FAMOUS = [
 const MIN_FAMOUS_MOVE = 0.04
 
 const FROM = '1996-01-01'
+// US stocks traded in fractions of a dollar (1/8, 1/16) until April 2001, so
+// older charts repeat the same few prices and look blocky. Random windows
+// start after this; the famous moves from 2000 are kept anyway.
+const DECIMAL_PRICES = '2001-04-09'
 const WINDOW = 90 // 60 candles to decide on + 30 to replay
 const PER_TICKER = 6 // random windows saved per ticker
 const PAUSE_MS = 400 // wait between requests, to be polite to the server
@@ -129,7 +133,7 @@ function pickWindows(rows, rng, taken = []) {
     const start = Math.floor(rng() * (rows.length - WINDOW))
     if (taken.some((s) => Math.abs(s - start) < WINDOW)) continue // no overlapping windows
     const slice = rows.slice(start, start + WINDOW)
-    if (!usable(slice)) continue
+    if (slice[0].date < DECIMAL_PRICES || !usable(slice)) continue
     taken.push(start)
     windows.push(slice)
   }

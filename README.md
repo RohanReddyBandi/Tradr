@@ -104,9 +104,11 @@ like generated cards; afterwards the Breakdown reveals the stock and the dates.
   Data Link: end-of-day prices for about 3,000 US companies, which Nasdaq describes as
   "curated by the Quandl community and released into the public domain". So the data
   file is in the repo and ships with the site. The dataset stopped updating in March
-  2018, so every real chart is from 1996 to early 2018.
+  2018, so every real chart is from 2001 to early 2018 (plus two famous moves from
+  2000): before April 2001 US stocks traded in fractions of a dollar, so older charts
+  repeat the same few prices and look blocky.
 - **Getting the data:** `npm run fetch-charts` downloads the daily prices and volume
-  (split- and dividend-adjusted) for 45 well-known companies and saves 6 random 90-day
+  (split- and dividend-adjusted) for 45 well-known companies and saves up to 6 random 90-day
   windows each to `src/data/historicalCharts.json` (windows under $5, with missing
   days, or with broken jumps are skipped), plus windows around well-known one-day moves
   (listed by date in the script, each checked against the data; the replay starts with
@@ -206,7 +208,7 @@ the exits drill, and what you've built and drawn) is saved separately and isn't 
 4. ✅ Breakdown: replay, markup drawn on the chart, decision graded separately from the outcome, and the best stop and target in hindsight with an accuracy score for yours
 5. ✅ Pattern detection: 44 candlestick patterns and 58 chart patterns (including gaps, islands, diamonds, rounding and V bottoms, broadening formations, rectangles, trendlines and trendline breaks, climaxes, Fibonacci pullbacks, and changes of character), found from the raw candles alone
 6. ✅ Stats (equity curve, win rate, average R, decision accuracy, skip stats, accuracy by difficulty and by pattern), a Learn tab with every pattern, and saving to localStorage
-7. ✅ Real historical data: public-domain daily prices (1996 to 2018) for 45 well-known companies, mixed in with generated charts and used for Learn's real-world charts
+7. ✅ Real historical data: public-domain daily prices (2000 to 2018) for 45 well-known companies: 235 windows, 16 of them famous one-day moves, mixed in with generated charts and used for Learn's real-world charts
 8. ✅ Build a candlestick and draw a chart pattern yourself, on each pattern's page
 9. ✅ Chart markup on the trade setup screen (trendlines, levels, named candles and patterns), graded in the Breakdown
 10. ✅ Learn tab: a study page for every pattern in a labelled textbook chart style, and real-world scenario practice to master each one

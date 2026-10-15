@@ -218,7 +218,7 @@ export function StatsPage({ game, practice, learn, onPlay, onLearn }: Props) {
           <a href="https://data.nasdaq.com/databases/WIKIP" target="_blank" rel="noreferrer" className="underline hover:text-soft">
             WIKI Prices
           </a>{' '}
-          (public domain), 1996 to 2018.
+          (public domain), 2000 to 2018.
         </p>
       </div>
     </div>
