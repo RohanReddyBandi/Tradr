@@ -17,7 +17,13 @@ const KEY_TO_DECISION: Record<string, Decision> = {
 
 // The Swipe tab has three screens: the card deck, the trade setup after a buy
 // or sell, and the Breakdown once the trade has played out.
-export function SwipePage({ game, onLearn }: { game: Game; onLearn: (patternName: string) => void }) {
+interface Props {
+  game: Game
+  onLearn: (patternName: string) => void
+  onHowItWorks: () => void // show the walkthrough again
+}
+
+export function SwipePage({ game, onLearn, onHowItWorks }: Props) {
   return (
     <AnimatePresence mode="wait" initial={false}>
       {game.pending ? (
@@ -44,14 +50,14 @@ export function SwipePage({ game, onLearn }: { game: Game; onLearn: (patternName
         </motion.div>
       ) : (
         <motion.div key="deck" className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-          <Deck game={game} />
+          <Deck game={game} onHowItWorks={onHowItWorks} />
         </motion.div>
       )}
     </AnimatePresence>
   )
 }
 
-function Deck({ game }: { game: Game }) {
+function Deck({ game, onHowItWorks }: { game: Game; onHowItWorks: () => void }) {
   const topCard = useRef<SwipeCardHandle>(null)
 
   // How far the top card has been dragged (0 to 1). The card behind grows
@@ -64,7 +70,8 @@ function Deck({ game }: { game: Game }) {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const decision = KEY_TO_DECISION[event.key]
-      if (!decision) return
+      // Not while a panel (like the walkthrough) is open over the deck.
+      if (!decision || document.querySelector('[aria-modal="true"]')) return
       event.preventDefault()
       topCard.current?.swipe(decision)
     }
@@ -135,6 +142,10 @@ function Deck({ game }: { game: Game }) {
         <p className="px-6 pt-3 pb-4 text-center text-[13px] text-muted tall:pb-16 lg:pb-0">
           Swipe right to buy, left to sell, up to skip
           <span className="hidden sm:inline lg:hidden"> · or use the arrow keys</span>
+          {' · '}
+          <button type="button" onClick={onHowItWorks} className="underline decoration-neutral-700 underline-offset-4 hover:text-white">
+            How it works
+          </button>
         </p>
       </section>
 

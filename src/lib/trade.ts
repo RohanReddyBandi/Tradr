@@ -83,6 +83,15 @@ export function openingPlan(candles: Candle[], direction: Direction, size: numbe
   }
 }
 
+// Sizing from the stop: the position that loses `budget` dollars if the stop
+// is hit (budget ÷ the loss per share, times the price), never more than you
+// have. null when there's no sensible stop to size from.
+export function sizeForRisk(budget: number, entry: number, stop: number, balance: number): number | null {
+  const perShare = Math.abs(entry - stop)
+  if (!(perShare > 0) || !Number.isFinite(perShare) || !(budget > 0)) return null
+  return cents(Math.min(balance, (budget / perShare) * entry))
+}
+
 // Dollars lost if the stop is hit, and dollars won if the target is hit.
 // You buy (size / entry) shares, and each share moves by the price difference.
 export function riskAndReward(plan: TradePlan) {

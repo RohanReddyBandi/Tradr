@@ -8,6 +8,8 @@ import { StatsPage } from './pages/StatsPage'
 import { useGame } from './game/useGame'
 import { usePractice } from './game/usePractice'
 import { useLearn } from './game/useLearn'
+import { walkthroughSeen } from './game/walkthrough'
+import { Walkthrough } from './components/Walkthrough'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('swipe')
@@ -15,6 +17,8 @@ export default function App() {
   const game = useGame()
   const practice = usePractice()
   const learn = useLearn()
+  // New players get a short walkthrough on their first visit to the deck.
+  const [showIntro, setShowIntro] = useState(() => game.history.length === 0 && !walkthroughSeen())
 
   function changeTab(next: Tab) {
     setLearnFocus(null)
@@ -38,7 +42,7 @@ export default function App() {
             Desktop: the full width, laid out by each page. */}
         <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col md:max-w-lg md:border-x md:border-edge lg:max-w-none lg:border-x-0">
           <main className="min-h-0 flex-1">
-            {tab === 'swipe' && <SwipePage game={game} onLearn={openLearn} />}
+            {tab === 'swipe' && <SwipePage game={game} onLearn={openLearn} onHowItWorks={() => setShowIntro(true)} />}
             {/* The key makes Learn start fresh (and open the pattern) each time it opens on one. */}
             {tab === 'learn' && <LearnPage key={learnFocus ?? 'all'} history={game.history} focus={learnFocus} practice={practice} learn={learn} />}
             {tab === 'stats' && <StatsPage game={game} practice={practice.progress} learn={learn.progress} onPlay={() => changeTab('swipe')} onLearn={openLearn} />}
@@ -47,6 +51,7 @@ export default function App() {
           {!(tab === 'swipe' && game.pending) && <TabBar active={tab} onChange={changeTab} />}
         </div>
       </div>
+      {tab === 'swipe' && showIntro && !game.pending && !game.review && <Walkthrough onDone={() => setShowIntro(false)} />}
       {/* Vercel Web Analytics: counts visits (no cookies) once it's switched on in
           the Vercel dashboard. It does nothing when running locally. */}
       <Analytics />

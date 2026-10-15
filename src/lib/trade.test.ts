@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Candle } from '../types'
-import { planProblem, riskAndReward, simulateTrade, type TradePlan } from './trade'
+import { planProblem, riskAndReward, simulateTrade, sizeForRisk, type TradePlan } from './trade'
 import { reviewStopAndTarget } from './riskReview'
 
 const candles = (rows: number[][]): Candle[] =>
@@ -102,3 +102,20 @@ describe('reviewStopAndTarget', () => {
   })
 })
 
+
+describe('sizing from the stop', () => {
+  it('buys only as much as loses the budget at the stop', () => {
+    // Risking $100 with a $2 stop: 50 shares at $100, a $5,000 position.
+    expect(sizeForRisk(100, 100, 98, 10_000)).toBe(5000)
+    // A wider stop means fewer shares, not more risk.
+    expect(sizeForRisk(100, 100, 96, 10_000)).toBe(2500)
+    // Works the same for a short (stop above the entry).
+    expect(sizeForRisk(100, 100, 104, 10_000)).toBe(2500)
+  })
+
+  it('never sizes past the balance, and needs a real stop', () => {
+    expect(sizeForRisk(100, 100, 99.9, 10_000)).toBe(10_000)
+    expect(sizeForRisk(100, 100, 100, 10_000)).toBeNull()
+    expect(sizeForRisk(100, 100, NaN, 10_000)).toBeNull()
+  })
+})

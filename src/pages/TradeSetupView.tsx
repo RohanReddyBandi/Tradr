@@ -12,6 +12,7 @@ import {
   openingPlan,
   planProblem,
   riskAndReward,
+  sizeForRisk,
   type Direction,
   type TradePlan,
 } from '../lib/trade'
@@ -25,6 +26,26 @@ interface Props {
 }
 
 const SIZE_CHOICES = [0.05, 0.1, 0.25, 1] // quick-pick shares of your balance (1 = all of it)
+const RISK_CHOICES = [0.005, 0.01, 0.02] // or: the share of your balance a stopped-out trade loses
+
+// How you like to size trades, remembered in this browser: a dollar amount
+// (null), or a share of your balance to risk, sized from the stop.
+const SIZING_KEY = 'tradr:sizing'
+function savedRiskShare(): number | null {
+  try {
+    const share = Number(localStorage.getItem(SIZING_KEY))
+    return RISK_CHOICES.includes(share) ? share : null
+  } catch {
+    return null
+  }
+}
+function saveRiskShare(share: number | null) {
+  try {
+    localStorage.setItem(SIZING_KEY, share === null ? 'amount' : String(share))
+  } catch {
+    // Not saved: it just starts in the default next time.
+  }
+}
 
 // "1,000.00" -> 1000. Commas and dollar signs are ignored.
 const parseAmount = (text: string) => Number(text.replace(/[$,\s]/g, ''))
@@ -54,6 +75,8 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
   const [stopText, setStopText] = useState(start.stop.toFixed(2))
   const [targetText, setTargetText] = useState(start.target.toFixed(2))
   const [placed, setPlaced] = useState({ stop: false, target: false }) // moved from where they started?
+  const [riskShare, setRiskShare] = useState(savedRiskShare) // sizing from the stop (null: a dollar amount)
+  const [lastRiskShare, setLastRiskShare] = useState(riskShare ?? 0.01)
 
   // Your markup: lines, levels, named candles, and the chart pattern.
   const [tool, setTool] = useState<Tool>('trade')
@@ -71,14 +94,26 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
     setSheet(null)
   }
 
+  // Sized from the stop, the position follows the stop as you move it.
+  const riskSize = riskShare === null ? null : sizeForRisk(balance * riskShare, start.entry, parseAmount(stopText), balance)
   const plan: TradePlan = {
     direction,
     entry: start.entry,
-    size: parseAmount(sizeText),
+    size: riskShare === null ? parseAmount(sizeText) : (riskSize ?? 0),
     stop: parseAmount(stopText),
     target: parseAmount(targetText),
   }
-  const problem = planProblem(plan, balance)
+  const problem = riskShare !== null && riskSize === null ? 'Set a stop loss to size the trade from.' : planProblem(plan, balance)
+  const capped = riskShare !== null && riskSize !== null && riskSize >= balance
+
+  function sizeBy(share: number | null) {
+    if (share === null) {
+      // Back to a dollar amount, starting from the size you had.
+      if (riskSize !== null) setSizeText(asAmount(riskSize))
+    } else setLastRiskShare(share)
+    setRiskShare(share)
+    saveRiskShare(share)
+  }
   const { risk, reward } = riskAndReward(plan)
   const long = direction === 'long'
 
@@ -231,27 +266,62 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
             </div>
 
             <div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <label htmlFor="size" className="text-[15px] text-soft">
                   Position size
                 </label>
-                <div className="flex gap-2">
-                  {SIZE_CHOICES.map((share) => {
-                    const selected = Math.abs(plan.size - balance * share) < 0.01
+                <div role="radiogroup" aria-label="Size by" className="grid grid-cols-2 gap-0.5 rounded-xl border border-edge p-0.5">
+                  {[
+                    { id: 'amount', label: 'Amount', share: null },
+                    { id: 'risk', label: 'Risk', share: lastRiskShare },
+                  ].map((m) => {
+                    const on = (riskShare === null) === (m.share === null)
                     return (
                       <button
-                        key={share}
+                        key={m.id}
                         type="button"
-                        onClick={() => setSizeText(asAmount(Math.round(balance * share * 100) / 100))}
-                        className={`h-9 rounded-xl border px-3 text-sm transition-colors ${
-                          selected ? 'border-neutral-600 bg-neutral-900 text-white' : 'border-edge text-muted hover:text-soft'
-                        }`}
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => !on && sizeBy(m.share)}
+                        className={`h-8 rounded-[10px] px-3 text-[13px] font-medium transition-colors ${on ? 'bg-neutral-800 text-white' : 'text-muted hover:text-soft'}`}
                       >
-                        {share * 100}%
+                        {m.label}
                       </button>
                     )
                   })}
                 </div>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {riskShare === null
+                  ? SIZE_CHOICES.map((share) => {
+                      const selected = Math.abs(plan.size - balance * share) < 0.01
+                      return (
+                        <button
+                          key={share}
+                          type="button"
+                          onClick={() => setSizeText(asAmount(Math.round(balance * share * 100) / 100))}
+                          className={`h-9 rounded-xl border px-3 text-sm transition-colors ${
+                            selected ? 'border-neutral-600 bg-neutral-900 text-white' : 'border-edge text-muted hover:text-soft'
+                          }`}
+                        >
+                          {share * 100}%
+                        </button>
+                      )
+                    })
+                  : RISK_CHOICES.map((share) => (
+                      <button
+                        key={share}
+                        type="button"
+                        onClick={() => sizeBy(share)}
+                        aria-pressed={riskShare === share}
+                        className={`h-9 rounded-xl border px-3 text-sm transition-colors ${
+                          riskShare === share ? 'border-neutral-600 bg-neutral-900 text-white' : 'border-edge text-muted hover:text-soft'
+                        }`}
+                      >
+                        {share * 100}%
+                      </button>
+                    ))}
+                <span className="text-xs text-muted">{riskShare === null ? 'of your balance' : 'of your balance at risk'}</span>
               </div>
               <div className="mt-2 flex h-12 items-center rounded-2xl border border-edge bg-card px-4 focus-within:border-neutral-500">
                 <span className="font-mono text-lg text-muted">$</span>
@@ -259,15 +329,29 @@ export function TradeSetupView({ pending, balance, onConfirm, onCancel }: Props)
                   id="size"
                   inputMode="decimal"
                   autoComplete="off"
-                  value={sizeText}
-                  onChange={(e) => setSizeText(e.target.value)}
-                  onBlur={() => Number.isFinite(plan.size) && plan.size > 0 && setSizeText(asAmount(plan.size))}
+                  value={riskShare === null ? sizeText : riskSize !== null ? asAmount(riskSize) : ''}
+                  onChange={(e) => {
+                    // Typing an amount switches back to sizing by amount.
+                    if (riskShare !== null) {
+                      setRiskShare(null)
+                      saveRiskShare(null)
+                    }
+                    setSizeText(e.target.value)
+                  }}
+                  onBlur={() => riskShare === null && Number.isFinite(plan.size) && plan.size > 0 && setSizeText(asAmount(plan.size))}
                   className="ml-1 min-w-0 flex-1 bg-transparent font-mono text-lg outline-none"
                 />
                 <span className="shrink-0 text-xs text-muted">
-                  {Number.isFinite(sizeShare) ? `${(sizeShare * 100).toFixed(sizeShare < 0.1 ? 1 : 0)}% of balance` : ''}
+                  {Number.isFinite(sizeShare) && plan.size > 0 ? `${(sizeShare * 100).toFixed(sizeShare < 0.1 ? 1 : 0)}% of balance` : ''}
                 </span>
               </div>
+              {riskShare !== null && (
+                <p className="mt-1.5 text-[13px] leading-relaxed text-muted" aria-live="polite">
+                  {capped
+                    ? `Your stop is so close that ${riskShare * 100}% risk would need more than your whole balance, so it's capped at your balance.`
+                    : `If the stop is hit you lose about ${formatMoney(balance * riskShare)}. Move the stop and the size follows: a wider stop means fewer shares, not more risk.`}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">

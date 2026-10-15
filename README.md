@@ -52,12 +52,18 @@ site has real charts on the swipe cards and in Learn's **Real-world charts** too
 
 ## Controls
 
+- The first visit opens a three-step walkthrough (making the call, planning your exits,
+  the replay and Breakdown); **How it works** under the deck brings it back
 - Drag the card right to **buy**, left to **sell**, up to **skip**
 - Or use the Sell / Skip / Buy buttons
 - After a buy or sell, set your position size (10% of your balance by default), stop
   loss, and take profit: drag the lines on the chart or type prices, then confirm. The
   stop and target start parked far out at the chart's edges (at least 6 normal days'
   range from the entry), so where they go is always your call
+- Size a trade by **Amount** (a share of your balance, or type dollars) or by **Risk**:
+  pick 0.5%, 1% or 2% of your balance to lose if the stop is hit, and the position
+  size follows the stop as you drag it (capped at your balance). Your choice is
+  remembered in this browser
 - Before confirming you can also mark up the chart, like on a trading platform: draw
   trendlines and support/resistance levels (their ends snap to nearby highs and lows),
   tap candles to name their candlestick pattern, and name the chart pattern. It's
